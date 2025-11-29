@@ -1,3 +1,17 @@
 <resources>
     <string name="app_name">Kenet</string>
+
+    <string-array name="blood_types_array">
+        <item>A Rh+</item>
+        <item>A Rh-</item>
+        <item>B Rh+</item>
+        <item>B Rh-</item>
+        <item>AB Rh+</item>
+        <item>AB Rh-</item>
+        <item>0 Rh+</item>
+        <item>0 Rh-</item>
+        <item>Bilinmiyor</item>
+    </string-array>
+
+
 </resources>

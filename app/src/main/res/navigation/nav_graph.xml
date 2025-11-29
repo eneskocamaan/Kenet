@@ -3,24 +3,41 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/nav_graph"
-    app:startDestination="@id/chatFragment">
+    app:startDestination="@id/peersFragment">
 
     <fragment
-        android:id="@+id/chatFragment"
-        android:name="com.eneskocamaan.kenet.ChatFragment"
-        android:label="Chat"
-        tools:layout="@layout/fragment_chat" />
+        android:id="@+id/peersFragment"
+        android:name="com.eneskocamaan.kenet.peer.PeersFragment"
+        android:label="Kişiler"
+        tools:layout="@layout/fragment_peers">
+
+        <action
+            android:id="@+id/action_peersFragment_to_chatDetailFragment"
+            app:destination="@id/chatDetailFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/chatDetailFragment"
+        android:name="com.eneskocamaan.kenet.ChatDetailFragment"
+        android:label="Sohbet"
+        tools:layout="@layout/fragment_chat_detail"> <argument
+        android:name="deviceAddress"
+        app:argType="string" />
+        <argument
+            android:name="deviceName"
+            app:argType="string" />
+    </fragment>
 
     <fragment
         android:id="@+id/emergencyFragment"
-        android:name="com.eneskocamaan.kenet.EmergencyFragment"
-        android:label="Emergency"
+        android:name="com.eneskocamaan.kenet.emergency.EmergencyFragment"
+        android:label="Acil Durum"
         tools:layout="@layout/fragment_emergency" />
 
     <fragment
         android:id="@+id/settingsFragment"
-        android:name="com.eneskocamaan.kenet.SettingsFragment"
-        android:label="Settings"
+        android:name="com.eneskocamaan.kenet.settings.SettingsFragment"
+        android:label="Ayarlar"
         tools:layout="@layout/fragment_settings" />
 
 </navigation>
