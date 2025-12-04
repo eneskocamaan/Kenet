@@ -14,12 +14,19 @@ import com.eneskocamaan.kenet.data.db.MessageEntity
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import org.json.JSONException
+import org.json.JSONObject
 import java.util.Date
 
 class MainActivity : AppCompatActivity() {
 
     private var manager: WifiP2pManager? = null
     private var channel: WifiP2pManager.Channel? = null
+
+    // Cihazın kendi ID'sini SharedPreferences'tan okuyan yardımcı özellik
+    // (Bunu RegistrationFragment'ta kaydettiğini varsayıyoruz)
+    private val myDeviceId: String
+        get() = getSharedPreferences("AppPrefs", MODE_PRIVATE).getString("MY_DEVICE_ID", "MyDevice") ?: "MyDevice"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -31,15 +38,16 @@ class MainActivity : AppCompatActivity() {
         // Temiz Başlangıç
         deletePersistentGroups()
 
-        // Tasarım Ayarları
+        // Tasarım Ayarları (Durum çubuğu renkleri)
         window.statusBarColor = getColor(R.color.background_dark)
         window.navigationBarColor = getColor(R.color.background_dark)
 
         setContentView(R.layout.activity_main)
+
+        // Bottom Navigation Kurulumu (Görünürlük ayarları burada)
         setupBottomNav()
 
-        // --- MERKEZİ MESAJ DİNLEYİCİSİ (HEARTBEAT) ---
-        // Uygulama açık olduğu sürece mesajları dinler ve DB'ye yazar.
+        // --- MERKEZİ MESAJ DİNLEYİCİSİ ---
         setupCentralMessageListener()
     }
 
@@ -47,40 +55,29 @@ class MainActivity : AppCompatActivity() {
         SocketManager.onMessageReceived = { incomingText ->
             Log.d("KENET_MAIN", "Mesaj Ana Merkezde Yakalandı: $incomingText")
 
-            // Mesajın kimden geldiğini bulmamız lazım.
-            // Şimdilik P2P yapısında tek bir bağlantı olduğu için aktif bağlantıyı varsayabiliriz
-            // veya mesaj paketinin içine senderID koyabiliriz.
-            // Şimdilik "Client" veya "Host" ayrımı olmadan, SocketManager'ın bağlı olduğu adresi almamız lazım.
-            // Basitlik adına, PeersFragment'ta belirlediğimiz logic üzerinden gideceğiz ama
-            // en doğrusu paketin içinde ID olmasıdır. Şimdilik "Unknown" veya varsa kayıtlı ID'yi kullanalım.
+            // Gelen veriyi JSON olarak parse etmeye çalışıyoruz.
+            // Beklenen Format: { "senderId": "CihazID", "msg": "Merhaba" }
+            try {
+                val jsonObject = JSONObject(incomingText)
+                val senderId = jsonObject.optString("senderId", "Unknown_Sender")
+                val messageContent = jsonObject.optString("msg", "")
 
-            // Geçici Çözüm: Mesajı kaydedelim. ChatPartnerId'yi daha akıllıca bulmak gerekebilir.
-            // Ama şimdilik, PeersFragment connection info'yu biliyor.
-            // Burada basitçe DB'ye yazacağız. SenderID'yi SocketManager'dan almaya çalışalım veya
-            // "CurrentChat" mantığı kuralım.
+                // Eğer mesaj içeriği boş değilse kaydet
+                if (messageContent.isNotEmpty()) {
+                    saveMessageToDb(messageContent, senderId)
+                }
 
-            // Not: En sağlamı mesajın içinde JSON olarak {sender: "...", msg: "..."} olmasıdır.
-            // Şimdilik düz metin olduğu için varsayılan bir ID kullanacağız veya
-            // PeersFragment'taki currentHostAddress'i buraya taşıyacağız.
-
-            // ACİL ÇÖZÜM: Mesajı veritabanına "Gelen" olarak kaydet.
-            // ChatDetailFragment bu veriyi DB'den okuyacak.
-            saveMessageToDb(incomingText)
+            } catch (e: JSONException) {
+                // Eğer gelen veri JSON formatında değilse (Eski versiyon veya düz metin)
+                Log.e("KENET_JSON", "Mesaj JSON değil, düz metin olarak işleniyor.")
+                saveMessageToDb(incomingText, null)
+            }
         }
     }
 
-    private fun saveMessageToDb(text: String) {
-        // Not: P2P ağlarında karşı tarafın IP/MAC adresini dinamik almak zordur.
-        // Bu örnekte karşı tarafın ID'sini şimdilik "TargetDevice" olarak sabitliyoruz.
-        // Gerçek uygulamada el sıkışma (Handshake) sırasında bu ID alınır.
-
-        // Önemli: ChatDetailFragment'ta deviceAddress neyse burada da o olmalı.
-        // Wi-Fi Direct IP'leri (192.168.49.x) değişkendir.
-        // Şimdilik test için "192.168.49.1" (Genelde Host IP'si) varsayalım veya
-        // Fragment'tan gelen argümanı Global bir değişkene atayalım.
-
-        // Bu sorunu aşmak için Global bir "ConnectedDeviceAddress" değişkeni kullanabiliriz.
-        val partnerId = GlobalVariables.currentPeerAddress ?: "Unknown_Device"
+    private fun saveMessageToDb(text: String, explicitSenderId: String?) {
+        // Eğer JSON içinden ID geldiyse onu kullan, yoksa Global değişkene bak, o da yoksa "Unknown"
+        val partnerId = explicitSenderId ?: GlobalVariables.currentPeerAddress ?: "Unknown_Device"
 
         val db = AppDatabase.getDatabase(this)
         val myId = this.myDeviceId
@@ -88,7 +85,7 @@ class MainActivity : AppCompatActivity() {
         val message = MessageEntity(
             senderId = partnerId,
             receiverId = myId,
-            chatPartnerId = partnerId,
+            chatPartnerId = partnerId, // Sohbet bu ID ile eşleşir
             content = text,
             timestamp = Date().time,
             isSent = false, // Gelen Mesaj
@@ -97,7 +94,7 @@ class MainActivity : AppCompatActivity() {
 
         lifecycleScope.launch(Dispatchers.IO) {
             db.messageDao().insertMessage(message)
-            Log.d("KENET_DB", "Mesaj DB'ye yazıldı: $text")
+            Log.d("KENET_DB", "Mesaj DB'ye yazıldı. Kimden: $partnerId - İçerik: $text")
         }
     }
 
@@ -108,10 +105,26 @@ class MainActivity : AppCompatActivity() {
 
         bottomNav.setupWithNavController(navController)
 
+        // Navigasyon hedefine göre BottomBar görünürlüğünü ayarla
         navController.addOnDestinationChangedListener { _, destination, _ ->
             when (destination.id) {
-                R.id.chatDetailFragment -> bottomNav.visibility = View.GONE
-                else -> bottomNav.visibility = View.VISIBLE
+                // ilk açılan ekranda gizle
+                R.id.splashFragment,
+
+                // 1. Giriş ve Profil Kurulumu (GİZLE)
+                R.id.loginFragment,
+                R.id.profileSetupFragment,
+                R.id.contactSelectionFragment,
+
+                // 2. Sohbet Detayı (GİZLE - Klavye açılacağı için)
+                R.id.chatDetailFragment -> {
+                    bottomNav.visibility = View.GONE
+                }
+
+                // 3. Ana Ekranlar (GÖSTER: Peers, Emergency, Settings)
+                else -> {
+                    bottomNav.visibility = View.VISIBLE
+                }
             }
         }
     }
@@ -129,7 +142,7 @@ class MainActivity : AppCompatActivity() {
     }
 }
 
-// Basit bir Global Değişken (IP Adresini Tutmak İçin)
+// Uygulama genelinde anlık bağlandığımız kişinin adresini tutmak için
 object GlobalVariables {
     var currentPeerAddress: String? = null
 }

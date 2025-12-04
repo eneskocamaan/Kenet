@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="12dp"
+    android:background="@drawable/ripple_effect">
+
+    <!-- İSİM -->
+    <TextView
+        android:id="@+id/tv_contact_name"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="Kişi Adı"
+        android:textColor="@color/white"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/tv_app_user_badge"/>
+
+    <!-- TELEFON -->
+    <TextView
+        android:id="@+id/tv_contact_phone"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="0555 000 00 00"
+        android:textColor="@color/text_gray"
+        android:textSize="14sp"
+        app:layout_constraintTop_toBottomOf="@id/tv_contact_name"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/cb_select"/>
+
+    <!-- YENİ: KENET KULLANICI ROZETİ -->
+    <!-- Başlangıçta visibility="gone" olmalı -->
+    <TextView
+        android:id="@+id/tv_app_user_badge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="KENET Kullanıyor"
+        android:textSize="8sp"
+        android:textStyle="bold"
+        android:textColor="@color/black"
+        android:background="@color/primary_color"
+        android:paddingHorizontal="8dp"
+        android:paddingVertical="3dp"
+        android:visibility="gone"
+        android:layout_marginEnd="12dp"
+        app:layout_constraintEnd_toStartOf="@id/cb_select"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"/>
+
+    <!-- CHECKBOX -->
+    <CheckBox
+        android:id="@+id/cb_select"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:buttonTint="@color/primary_color"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"/>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

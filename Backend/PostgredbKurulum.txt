@@ -1,0 +1,92 @@
+----------------------------------------------------------------------
+-- 1. USERS TABLOSU: Kimlik ve IBE Anahtarlarının Merkezi (Primary Keys)
+----------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS users (
+    -- USER_ID: Benzersiz, sabit ve kısa ID (Paketlerde gezinecek, 8 karakter)
+    user_id CHAR(8) PRIMARY KEY,
+
+    -- IBE Identity (Kriptografik olarak kimlik, sunucuda tutulur)
+    phone_number VARCHAR(15) UNIQUE NOT NULL,
+
+    -- Profil Bilgileri
+    display_name VARCHAR(100) NOT NULL,
+    blood_type VARCHAR(10),
+
+    -- KRİTİK GÜVENLİK ANAHTARLARI
+    -- PKG'den gelen Özel Anahtar (Şifre çözmek için)
+    ibe_private_key TEXT,
+    -- Sistemin genel şifreleme parametreleri (Başkasına şifrelemek için)
+    public_params TEXT,
+
+    -- Geçici Doğrulama
+    verification_code CHAR(4)
+);
+
+----------------------------------------------------------------------
+-- 2. CONTACTS TABLOSU: Kimin, Kimi Rehberine Eklediği (İlişkisel Liste)
+----------------------------------------------------------------------
+-- Bir kullanıcının (owner_id) sahip olduğu KENET kullanıcılarını (contact_id) listeler.
+CREATE TABLE IF NOT EXISTS contacts (
+    -- SAHİP KİMLİĞİ: Bu rehber kaydının sahibi (Foreign Key)
+    owner_id CHAR(8) NOT NULL,
+
+    -- REHBERDEKİ KİŞİNİN KİMLİĞİ: Listelenen kişinin sabit ID'si
+    contact_id CHAR(8) NOT NULL,
+
+    -- Rehberdeki görünüm bilgileri
+    phone_number VARCHAR(15) NOT NULL,
+    display_name VARCHAR(100) NOT NULL,
+
+    -- KISITLAMALAR
+    PRIMARY KEY (owner_id, contact_id), -- Bir kullanıcı, bir kişiyi sadece bir kez ekleyebilir
+
+    -- İLİŞKİ 1: owner_id, users tablosunda var olmalı
+    CONSTRAINT fk_contact_owner
+        FOREIGN KEY (owner_id)
+        REFERENCES users(user_id)
+        ON DELETE CASCADE -- Kullanıcı silinirse rehberi de silinir
+);
+
+----------------------------------------------------------------------
+-- 3. MESSAGES TABLOSU: Uygulama İçi Mesajlar (Room DB'ye Karşılık Gelir)
+----------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS messages (
+    id SERIAL PRIMARY KEY, -- PostgreSQL'in otomatik artan ID'si
+
+    -- KİMLİK VE YÖNLENDİRME (Tümü users tablosuna bağlı)
+    sender_id CHAR(8) NOT NULL,
+    receiver_id CHAR(8) NOT NULL,
+    chat_partner_id CHAR(8) NOT NULL, -- Bu sohbetin ait olduğu kişi (Sorgulama Kolaylığı İçin)
+
+    -- İÇERİK
+    content TEXT NOT NULL,
+    timestamp BIGINT NOT NULL,
+    is_sent BOOLEAN NOT NULL,
+    is_read BOOLEAN DEFAULT FALSE,
+    status INT DEFAULT 0, -- 0:Gönderiliyor, 1:İletildi, 2:Okundu
+
+    -- İLİŞKİ 1: Gönderen users tablosunda olmalı
+    CONSTRAINT fk_sender
+        FOREIGN KEY (sender_id)
+        REFERENCES users(user_id),
+
+    -- İLİŞKİ 2: Alıcı users tablosunda olmalı
+    CONSTRAINT fk_receiver
+        FOREIGN KEY (receiver_id)
+        REFERENCES users(user_id),
+
+    -- İLİŞKİ 3: Sohbet partneri users tablosunda olmalı
+    CONSTRAINT fk_chat_partner
+        FOREIGN KEY (chat_partner_id)
+        REFERENCES users(user_id)
+);
+
+-- 1. Mevcut Primary Key kısıtlamasını kaldır (Adı genelde contacts_pkey'dir)
+ALTER TABLE contacts DROP CONSTRAINT contacts_pkey;
+
+-- 2. Artık Primary Key olmadığı için contact_id'yi NULL olabilir hale getir
+ALTER TABLE contacts ALTER COLUMN contact_id DROP NOT NULL;
+
+-- 3. Yeni Primary Key'i (Sahip ID ve Telefon Numarası) olarak ayarla
+-- Bu sayede aynı numarayı tekrar kaydetmeyi engelleriz ve Python kodundaki ON CONFLICT çalışır.
+ALTER TABLE contacts ADD PRIMARY KEY (owner_id, phone_number);

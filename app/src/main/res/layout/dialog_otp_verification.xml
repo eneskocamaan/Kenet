@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:background="@drawable/bg_dialog">
+
+    <!-- BAŞLIK -->
+    <TextView
+        android:id="@+id/tv_dialog_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Doğrulama Kodu"
+        android:textColor="@color/white"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:layout_gravity="center_horizontal"/>
+
+    <!-- AÇIKLAMA -->
+    <TextView
+        android:id="@+id/tv_dialog_subtitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:gravity="center"
+        android:textColor="@color/text_secondary"
+        android:textSize="14sp"
+        tools:text="+90 555 123 4567 numarasına gönderilen 4 haneli kodu girin." />
+
+    <!-- INPUT ALANI -->
+    <!--
+       boxBackgroundColor: card_background (#1E1E1E) yapılarak input alanı vurgulandı.
+       boxStrokeColor: Odaklanınca primary_color olur.
+       hintTextColor: Placeholder rengi.
+    -->
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/til_otp_code"
+        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="32dp"
+        android:hint="Doğrulama Kodu"
+        app:boxBackgroundColor="@color/card_background"
+        app:boxStrokeColor="@color/primary_color"
+        app:boxStrokeWidth="1dp"
+        app:boxStrokeWidthFocused="2dp"
+        app:hintTextColor="@color/primary_color"
+        app:boxCornerRadiusTopStart="12dp"
+        app:boxCornerRadiusTopEnd="12dp"
+        app:boxCornerRadiusBottomStart="12dp"
+        app:boxCornerRadiusBottomEnd="12dp">
+
+        <!--
+           inputType="number": Şifre gizlenmez, sayılar görünür.
+           letterSpacing: Rakamlar arası hafif boşluk.
+        -->
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/et_otp_code"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="number"
+            android:maxLength="4"
+            android:gravity="center"
+            android:textColor="@color/white"
+            android:letterSpacing="0.3"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            tools:text="4829" />
+
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <!-- BUTON VE YÜKLEME ALANI -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="32dp">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_verify"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:backgroundTint="@color/primary_color"
+            android:text="Doğrula"
+            android:textColor="@color/white"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textAllCaps="false"
+            app:cornerRadius="12dp" />
+
+        <!-- accent_color ile modern yükleme animasyonu -->
+        <ProgressBar
+            android:id="@+id/dialog_progress_bar"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:layout_gravity="center"
+            android:indeterminateTint="@color/accent_color"
+            android:elevation="4dp"
+            android:visibility="gone"
+            tools:visibility="visible" />
+
+    </FrameLayout>
+
+</LinearLayout>

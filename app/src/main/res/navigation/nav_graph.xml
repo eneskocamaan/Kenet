@@ -3,41 +3,156 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/nav_graph"
-    app:startDestination="@id/peersFragment">
+    app:startDestination="@id/splashFragment">
 
+    <!-- 0. SPLASH -->
+    <fragment
+        android:id="@+id/splashFragment"
+        android:name="com.eneskocamaan.kenet.registration.SplashFragment"
+        android:label="Splash"
+        tools:layout="@layout/fragment_splash">
+        <action
+            android:id="@+id/action_splashFragment_to_loginFragment"
+            app:destination="@id/loginFragment"
+            app:popUpTo="@id/nav_graph"
+            app:popUpToInclusive="true"
+            app:enterAnim="@android:anim/fade_in"
+            app:exitAnim="@android:anim/fade_out"/>
+        <action
+            android:id="@+id/action_splashFragment_to_peersFragment"
+            app:destination="@id/peersFragment"
+            app:popUpTo="@id/nav_graph"
+            app:popUpToInclusive="true"
+            app:enterAnim="@android:anim/fade_in"
+            app:exitAnim="@android:anim/fade_out"/>
+    </fragment>
+
+    <!-- 1. LOGIN -->
+    <fragment
+        android:id="@+id/loginFragment"
+        android:name="com.eneskocamaan.kenet.registration.LoginFragment"
+        android:label="Giriş"
+        tools:layout="@layout/fragment_login">
+        <action
+            android:id="@+id/action_loginFragment_to_profileSetupFragment"
+            app:destination="@id/profileSetupFragment"
+            app:popUpTo="@id/loginFragment"
+            app:popUpToInclusive="true" />
+        <action
+            android:id="@+id/action_loginFragment_to_peersFragment"
+            app:destination="@id/peersFragment"
+            app:popUpTo="@id/loginFragment"
+            app:popUpToInclusive="true" />
+    </fragment>
+
+    <!-- 2. PROFILE SETUP -->
+    <fragment
+        android:id="@+id/profileSetupFragment"
+        android:name="com.eneskocamaan.kenet.registration.ProfileSetupFragment"
+        android:label="Profil Kurulumu"
+        tools:layout="@layout/fragment_profile_setup">
+
+        <!-- HATAYI ÇÖZEN KISIM: Bu action eksikti, eklendi. -->
+        <action
+            android:id="@+id/action_profileSetupFragment_to_peersFragment"
+            app:destination="@id/peersFragment"
+            app:popUpTo="@id/profileSetupFragment"
+            app:popUpToInclusive="true" />
+
+        <!-- Rehberden Seçme Ekranına Git -->
+        <action
+            android:id="@+id/action_profileSetupFragment_to_contactSelectionFragment"
+            app:destination="@id/contactSelectionFragment"
+            app:enterAnim="@android:anim/fade_in"
+            app:exitAnim="@android:anim/fade_out"
+            app:popEnterAnim="@android:anim/fade_in"
+            app:popExitAnim="@android:anim/fade_out"/>
+
+        <argument
+            android:name="phoneNumber"
+            app:argType="string" />
+        <argument
+            android:name="userId"
+            app:argType="string"
+            app:nullable="true"/>
+    </fragment>
+
+    <!-- 2.1. CONTACT SELECTION (REHBER) -->
+    <fragment
+        android:id="@+id/contactSelectionFragment"
+        android:name="com.eneskocamaan.kenet.registration.ContactSelectionFragment"
+        android:label="Rehberden Seç"
+        tools:layout="@layout/fragment_contact_selection" />
+
+    <!-- ================================================= -->
+    <!-- 3. ANA EKRANLAR (BOTTOM NAV)                      -->
+    <!-- ================================================= -->
+
+    <!-- TAB 1: KİŞİLER (PEERS) -->
     <fragment
         android:id="@+id/peersFragment"
         android:name="com.eneskocamaan.kenet.peer.PeersFragment"
         android:label="Kişiler"
         tools:layout="@layout/fragment_peers">
-
         <action
             android:id="@+id/action_peersFragment_to_chatDetailFragment"
             app:destination="@id/chatDetailFragment" />
     </fragment>
 
-    <fragment
-        android:id="@+id/chatDetailFragment"
-        android:name="com.eneskocamaan.kenet.ChatDetailFragment"
-        android:label="Sohbet"
-        tools:layout="@layout/fragment_chat_detail"> <argument
-        android:name="deviceAddress"
-        app:argType="string" />
-        <argument
-            android:name="deviceName"
-            app:argType="string" />
-    </fragment>
-
+    <!-- TAB 2: ACİL DURUM -->
     <fragment
         android:id="@+id/emergencyFragment"
         android:name="com.eneskocamaan.kenet.emergency.EmergencyFragment"
         android:label="Acil Durum"
         tools:layout="@layout/fragment_emergency" />
 
+    <!-- TAB 3: AYARLAR -->
     <fragment
         android:id="@+id/settingsFragment"
         android:name="com.eneskocamaan.kenet.settings.SettingsFragment"
         android:label="Ayarlar"
-        tools:layout="@layout/fragment_settings" />
+        tools:layout="@layout/fragment_settings">
+
+        <!-- Kişi Yönetim Ekranına Git -->
+        <action
+            android:id="@+id/action_settingsFragment_to_trustedContactsFragment"
+            app:destination="@id/trustedContactsFragment"
+            app:enterAnim="@android:anim/fade_in"
+            app:exitAnim="@android:anim/fade_out"
+            app:popEnterAnim="@android:anim/fade_in"
+            app:popExitAnim="@android:anim/fade_out" />
+    </fragment>
+
+    <!-- 3.1. TRUSTED CONTACTS (KİŞİ YÖNETİMİ) -->
+    <fragment
+        android:id="@+id/trustedContactsFragment"
+        android:name="com.eneskocamaan.kenet.settings.TrustedContactsFragment"
+        android:label="Kişileri Yönet"
+        tools:layout="@layout/fragment_trusted_contacts">
+
+        <!-- Yeni Kişi Eklemek İçin Rehbere Git -->
+        <action
+            android:id="@+id/action_trustedContactsFragment_to_contactSelectionFragment"
+            app:destination="@id/contactSelectionFragment"
+            app:enterAnim="@android:anim/fade_in"
+            app:exitAnim="@android:anim/fade_out"
+            app:popEnterAnim="@android:anim/fade_in"
+            app:popExitAnim="@android:anim/fade_out" />
+    </fragment>
+
+    <!-- 4. CHAT DETAIL -->
+    <fragment
+        android:id="@+id/chatDetailFragment"
+        android:name="com.eneskocamaan.kenet.ChatDetailFragment"
+        android:label="Sohbet">
+        <argument
+            android:name="deviceAddress"
+            app:argType="string" />
+        <argument
+            android:name="deviceName"
+            app:argType="string"
+            app:nullable="true"
+            android:defaultValue="@null"/>
+    </fragment>
 
 </navigation>
