@@ -2,7 +2,6 @@ package com.eneskocamaan.kenet.data.db
 
 import androidx.room.Entity
 import androidx.room.ForeignKey
-import androidx.room.PrimaryKey
 
 @Entity(
     tableName = "contacts",
@@ -17,8 +16,12 @@ import androidx.room.PrimaryKey
     ]
 )
 data class ContactEntity(
-    val ownerId: String,          // Şu anki kullanıcının ID'si
+    val ownerId: String,            // Şu anki kullanıcının ID'si
     val contactPhoneNumber: String, // Rehberdeki kişinin numarası
-    val contactName: String,      // Rehberdeki adı
-    val contactServerId: String? = null // Sunucudan dönecek olan contact_id (eşleşirse)
+    val contactName: String,        // Rehberdeki adı
+    val contactServerId: String? = null, // Sunucudan dönecek olan contact_id
+
+    // [YENİ] Arkadaşın Son Bilinen Konumu (Sunucudan Sync ile gelir)
+    val contactLatitude: Double? = null,
+    val contactLongitude: Double? = null
 )

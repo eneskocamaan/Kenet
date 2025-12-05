@@ -10,6 +10,7 @@ data class CompleteProfileRequest(
     @SerializedName("phone_number")
     val phoneNumber: String,
 
+
     @SerializedName("display_name")
     val displayName: String,
 

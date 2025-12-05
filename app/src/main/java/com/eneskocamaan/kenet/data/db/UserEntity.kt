@@ -22,7 +22,9 @@ data class UserEntity(
     val publicParams: String,
 
     // Opsiyonel afet bilgisi
-    val bloodType: String? = null
+    val bloodType: String? = null,
 
-
+    // [YENİ] Kullanıcının Kendi Anlık Konumu (GPSR için zorunlu)
+    val latitude: Double? = null,
+    val longitude: Double? = null
 )

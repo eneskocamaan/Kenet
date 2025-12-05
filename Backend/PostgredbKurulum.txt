@@ -90,3 +90,6 @@ ALTER TABLE contacts ALTER COLUMN contact_id DROP NOT NULL;
 -- 3. Yeni Primary Key'i (Sahip ID ve Telefon Numarası) olarak ayarla
 -- Bu sayede aynı numarayı tekrar kaydetmeyi engelleriz ve Python kodundaki ON CONFLICT çalışır.
 ALTER TABLE contacts ADD PRIMARY KEY (owner_id, phone_number);
+
+ALTER TABLE users ADD COLUMN latitude FLOAT;
+ALTER TABLE users ADD COLUMN longitude FLOAT;

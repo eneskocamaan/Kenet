@@ -10,7 +10,6 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 pool = None
 
 async def connect_db():
-    """Veritabanı bağlantı havuzunu başlatır."""
     global pool
     try:
         pool = await asyncpg.create_pool(DATABASE_URL)
@@ -20,30 +19,16 @@ async def connect_db():
         raise
 
 async def close_db():
-    """Uygulama kapanırken bağlantı havuzunu kapatır."""
     if pool:
         await pool.close()
         print("INFO: PostgreSQL bağlantısı kapatıldı.")
 
-# --- YARDIMCI: Telefon Temizleme ---
 def sanitize_phone(phone: str) -> str:
-    """
-    Telefon numarasını sadece 10 haneli saf hale getirir.
-    Veritabanında standartlaşma sağlar.
-    +90532... -> 532...
-    0532...   -> 532...
-    """
-    # Sadece rakamları al
     p = ''.join(filter(str.isdigit, phone))
-
-    # Türkiye ülke kodu (90) varsa ve numara uzunsa sil
     if p.startswith("90") and len(p) > 10:
         p = p[2:]
-
-    # Başındaki '0'ı sil
     if p.startswith("0"):
         p = p[1:]
-
     return p
 
 # --- KULLANICI İŞLEMLERİ (DAO) ---
@@ -56,7 +41,6 @@ async def get_user_by_phone(phone_number: str) -> Optional[Dict]:
 async def upsert_otp(phone_number: str, otp_code: str):
     clean_num = sanitize_phone(phone_number)
     user = await get_user_by_phone(clean_num)
-
     if user:
         query = "UPDATE users SET verification_code = $1 WHERE phone_number = $2"
         await pool.execute(query, otp_code, clean_num)
@@ -70,45 +54,37 @@ async def upsert_otp(phone_number: str, otp_code: str):
 
 async def activate_new_user(phone_number: str, user_id: str, private_key: str, public_params: str):
     clean_num = sanitize_phone(phone_number)
-    query = """
-        UPDATE users SET ibe_private_key = $1, public_params = $2 WHERE phone_number = $3
-    """
+    query = "UPDATE users SET ibe_private_key = $1, public_params = $2 WHERE phone_number = $3"
     await pool.execute(query, private_key, public_params, clean_num)
 
 async def update_user_profile(phone_number: str, display_name: str, blood_type: str):
     clean_num = sanitize_phone(phone_number)
-    query = """
-        UPDATE users SET display_name = $1, blood_type = $2 WHERE phone_number = $3
-    """
+    query = "UPDATE users SET display_name = $1, blood_type = $2 WHERE phone_number = $3"
     await pool.execute(query, display_name, blood_type, clean_num)
+
+# [YENİ] Konum Güncelleme Fonksiyonu
+async def update_user_location(user_id: str, lat: float, lng: float):
+    """Kullanıcının latitude ve longitude değerlerini günceller."""
+    query = """
+        UPDATE users
+        SET latitude = $1, longitude = $2
+        WHERE user_id = $3
+    """
+    await pool.execute(query, lat, lng, user_id)
 
 # --- REHBER İŞLEMLERİ ---
 
 async def add_contacts_to_db(owner_phone: str, contacts: List[ContactModel]):
-    """
-    Seçilen kişileri 'contacts' tablosuna ekler.
-    Numaraları temizler ve o an kayıtlıysa ID'sini ekler.
-    """
     clean_owner_phone = sanitize_phone(owner_phone)
     owner = await get_user_by_phone(clean_owner_phone)
-
-    if not owner:
-        print(f"HATA: Kullanıcı bulunamadı: {owner_phone}")
-        return
+    if not owner: return
 
     owner_id = owner['user_id']
-
     for contact in contacts:
         clean_contact_phone = sanitize_phone(contact.phone_number)
-
-        # Bu kişi sistemde kayıtlı mı?
         registered_contact = await get_user_by_phone(clean_contact_phone)
+        contact_id = registered_contact['user_id'] if registered_contact else None
 
-        contact_id = None
-        if registered_contact:
-            contact_id = registered_contact['user_id']
-
-        # Veritabanına Ekle (Upsert)
         query = """
             INSERT INTO contacts (owner_id, contact_id, phone_number, display_name)
             VALUES ($1, $2, $3, $4)
@@ -118,28 +94,23 @@ async def add_contacts_to_db(owner_phone: str, contacts: List[ContactModel]):
         try:
             await pool.execute(query, owner_id, contact_id, clean_contact_phone, contact.display_name)
         except Exception as e:
-            print(f"Kişi eklenirken hata ({contact.display_name}): {e}")
+            print(f"Hata: {e}")
 
 async def get_registered_users(phone_numbers: List[str]) -> List[str]:
-    """
-    Verilen numara listesinden hangilerinin kayıtlı olduğunu bulur.
-    'Kenet Kullanıyor' kontrolü için.
-    """
-    if not phone_numbers:
-        return []
+    if not phone_numbers: return []
     clean_list = [sanitize_phone(p) for p in phone_numbers]
     query = "SELECT phone_number FROM users WHERE phone_number = ANY($1::text[])"
     rows = await pool.fetch(query, clean_list)
     return [row['phone_number'] for row in rows]
 
-# --- SENKRONİZASYON VE EKSİK ID TAMAMLAMA (KRİTİK KISIM) ---
+# --- SENKRONİZASYON (GÜNCELLENDİ) ---
 
 async def get_user_contacts(owner_id: str) -> List[Dict]:
     """
-    1. ADIM (GÜNCELLEME): Önce 'contacts' tablosundaki eksik ID'leri tamamla.
-       Eğer rehberdeki bir numara 'users' tablosunda artık varsa,
-       contacts tablosundaki NULL olan contact_id'yi o kullanıcının ID'si ile güncelle.
+    1. ADIM: Eksik ID'leri tamamla.
+    2. ADIM: Rehberi çekerken USERS tablosuna JOIN atarak ANLIK KONUMU da çek.
     """
+    # Önce ID'leri güncelle (Eskisi gibi)
     update_query = """
         UPDATE contacts c
         SET contact_id = u.user_id
@@ -150,29 +121,24 @@ async def get_user_contacts(owner_id: str) -> List[Dict]:
     """
     await pool.execute(update_query, owner_id)
 
-    """
-    2. ADIM (ÇEKME): Artık tablo güncellendiği için en güncel verileri çekip kullanıcıya dön.
-    """
+    # [GÜNCELLENDİ] JOIN ile Users tablosundan latitude ve longitude çekiliyor
     select_query = """
-        SELECT contact_id, phone_number, display_name
-        FROM contacts
-        WHERE owner_id = $1
+        SELECT
+            c.contact_id,
+            c.phone_number,
+            c.display_name,
+            u.latitude,
+            u.longitude
+        FROM contacts c
+        LEFT JOIN users u ON c.contact_id = u.user_id
+        WHERE c.owner_id = $1
     """
     return await pool.fetch(select_query, owner_id)
 
 async def delete_contact_from_db(owner_phone: str, contact_phone: str):
-    """
-    Bir kişiyi rehberden siler.
-    """
-    # 1. Sahibin ID'sini bul
     owner = await get_user_by_phone(sanitize_phone(owner_phone))
-    if not owner:
-        return False
-
+    if not owner: return False
     owner_id = owner['user_id']
     clean_contact_phone = sanitize_phone(contact_phone)
-
-    # 2. Silme İşlemi
     query = "DELETE FROM contacts WHERE owner_id = $1 AND phone_number = $2"
-    result = await pool.execute(query, owner_id, clean_contact_phone)
-    return result # "DELETE 1" gibi bir string döner
+    await pool.execute(query, owner_id, clean_contact_phone)

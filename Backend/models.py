@@ -28,6 +28,11 @@ class CompleteProfileRequest(BaseModel):
     # YENİ: Seçilen kişiler listesi (Varsayılan boş liste)
     contacts: List[ContactModel] = []
 
+class UpdateLocationRequest(BaseModel):
+    user_id: str
+    latitude: float
+    longitude: float
+
 # --- Giden Yanıt (Response) Modelleri ---
 
 class VerifyOtpResponse(BaseModel):
@@ -68,6 +73,8 @@ class SyncContactItem(BaseModel):
     contact_id: Optional[str]
     phone_number: str
     display_name: str
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
 class SyncContactsResponse(BaseModel):
     contacts: List[SyncContactItem]
