@@ -5,7 +5,7 @@ import androidx.room.ForeignKey
 
 @Entity(
     tableName = "contacts",
-    primaryKeys = ["ownerId", "contactPhoneNumber"], // Bir kişi aynı numarayı iki kere ekleyemesin
+    primaryKeys = ["ownerId", "contactPhoneNumber"],
     foreignKeys = [
         ForeignKey(
             entity = UserEntity::class,
@@ -16,12 +16,13 @@ import androidx.room.ForeignKey
     ]
 )
 data class ContactEntity(
-    val ownerId: String,            // Şu anki kullanıcının ID'si
-    val contactPhoneNumber: String, // Rehberdeki kişinin numarası
-    val contactName: String,        // Rehberdeki adı
-    val contactServerId: String? = null, // Sunucudan dönecek olan contact_id
+    val ownerId: String,            // Bu rehber kime ait? (Benim ID'm)
+    val contactPhoneNumber: String, // Kişinin Numarası
+    val contactName: String,        // Kişinin Adı
 
-    // [YENİ] Arkadaşın Son Bilinen Konumu (Sunucudan Sync ile gelir)
+    val contactServerId: String? = null, // Kenet ID'si (Varsa)
+
+    // Kişinin son bilinen konumu (Mesaj gönderirken hedef olarak kullanılır)
     val contactLatitude: Double? = null,
     val contactLongitude: Double? = null
 )

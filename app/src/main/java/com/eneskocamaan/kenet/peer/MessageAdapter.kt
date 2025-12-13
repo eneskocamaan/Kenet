@@ -8,23 +8,25 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.eneskocamaan.kenet.R
 import com.eneskocamaan.kenet.data.db.MessageEntity
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class MessageAdapter(
-    private val messages: MutableList<MessageEntity>,
-    private val myDeviceId: String // Hangi mesajın bana ait olduğunu anlamak için
+    private val messages: MutableList<MessageEntity>
+    // currentUserId parametresini kaldırdık, çünkü isSent flag'ini kullanacağız.
 ) : RecyclerView.Adapter<MessageAdapter.MessageViewHolder>() {
 
-    // Farklı görünüm tipleri
     private val VIEW_TYPE_MESSAGE_SENT = 1
     private val VIEW_TYPE_MESSAGE_RECEIVED = 2
 
-    // Mesajın bana ait olup olmadığını kontrol et
     override fun getItemViewType(position: Int): Int {
         val message = messages[position]
 
-        // Eğer mesajın gönderen ID'si benim ID'm ise, sağda göster (SENT).
-        // NOT: MessageEntity modelimizde isSent flag'i de var, ancak bu kontrol daha güvenlidir.
-        return if (message.senderId == myDeviceId) {
+        // DÜZELTME BURADA:
+        // ID karşılaştırması yerine veritabanındaki kesin bilgiye güveniyoruz.
+        // isSent = true ise mesajı biz göndermişizdir -> SAĞDA GÖSTER
+        return if (message.isSent) {
             VIEW_TYPE_MESSAGE_SENT
         } else {
             VIEW_TYPE_MESSAGE_RECEIVED
@@ -33,40 +35,45 @@ class MessageAdapter(
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MessageViewHolder {
         val layoutRes = if (viewType == VIEW_TYPE_MESSAGE_SENT) {
-            R.layout.item_message_sent // Sağda görünen layout (Gönderilen)
+            R.layout.item_message_sent     // Sağ Balon
         } else {
-            R.layout.item_message_received // Solda görünen layout (Alınan)
+            R.layout.item_message_received // Sol Balon
         }
         val view = LayoutInflater.from(parent.context).inflate(layoutRes, parent, false)
         return MessageViewHolder(view)
     }
 
     override fun onBindViewHolder(holder: MessageViewHolder, position: Int) {
-        val message = messages[position]
-        holder.bind(message)
+        holder.bind(messages[position])
     }
 
     override fun getItemCount(): Int = messages.size
 
-    // Yeni mesaj eklendiğinde listeyi güncelle
-    fun addMessage(message: MessageEntity) {
-        messages.add(message)
-        notifyItemInserted(messages.size - 1)
-    }
-
-    // addmassage yerine tüm listeyi yeniler
     fun updateList(newMessages: List<MessageEntity>) {
         messages.clear()
         messages.addAll(newMessages)
-        notifyDataSetChanged() // Tüm listeyi yeniler
+        notifyDataSetChanged()
     }
 
     class MessageViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val messageText: TextView = itemView.findViewById(R.id.text_message_body)
+        private val timeText: TextView = itemView.findViewById(R.id.text_message_time)
 
         fun bind(message: MessageEntity) {
+            // Mesaj İçeriği
             messageText.text = message.content
-            messageText.setTextColor(Color.WHITE) // Yazı Rengi Beyaz
+            messageText.setTextColor(Color.WHITE)
+
+            // Saat Gösterimi (Timestamp -> HH:mm)
+            if (message.timestamp > 0) {
+                val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
+                val timeString = sdf.format(Date(message.timestamp))
+                timeText.text = timeString
+                timeText.visibility = View.VISIBLE
+            } else {
+                timeText.text = ""
+                timeText.visibility = View.GONE
+            }
         }
     }
 }

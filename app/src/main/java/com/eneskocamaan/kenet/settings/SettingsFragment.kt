@@ -3,6 +3,7 @@ package com.eneskocamaan.kenet.settings
 import android.os.Bundle
 import android.view.View
 import android.widget.ArrayAdapter
+import android.widget.AutoCompleteTextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
@@ -28,10 +29,9 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
         super.onViewCreated(view, savedInstanceState)
         _binding = FragmentSettingsBinding.bind(view)
 
-        setupUI()
+        setupUI() // Dropdown Kurulumu
         loadUserData()
 
-        // 1. Profil Güncelle Butonu
         binding.btnUpdateProfile.setOnClickListener {
             val name = binding.etDisplayName.text.toString().trim()
             val blood = binding.etBloodType.text.toString().trim()
@@ -42,19 +42,31 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
             }
         }
 
-        // 2. Kişileri Yönet Butonu -> TrustedContactsFragment'a Yönlendir
-        // Artık liste burada değil, yeni sayfada.
         binding.btnManageContacts.setOnClickListener {
-            // NavGraph'ta action_settingsFragment_to_trustedContactsFragment tanımlı olmalı
             findNavController().navigate(R.id.action_settingsFragment_to_trustedContactsFragment)
         }
     }
 
+    // Dropdown listesinin kaybolmaması için onResume'da tekrar kuruyoruz
+    override fun onResume() {
+        super.onResume()
+        setupUI()
+    }
+
     private fun setupUI() {
-        // Kan grubu listesini dropdown'a bağla
+        // Kan grubu listesini strings.xml'den çek
         val bloodTypes = resources.getStringArray(R.array.blood_types_array)
+
+        // Adapter Oluştur
         val adapter = ArrayAdapter(requireContext(), R.layout.dropdown_item, bloodTypes)
-        binding.etBloodType.setAdapter(adapter)
+
+        // AutoCompleteTextView'a Bağla
+        (binding.etBloodType as? AutoCompleteTextView)?.setAdapter(adapter)
+
+        // Tıklayınca listenin açılmasını garantile (Klavye yerine liste açılır)
+        binding.etBloodType.setOnClickListener {
+            (binding.etBloodType as? AutoCompleteTextView)?.showDropDown()
+        }
     }
 
     private fun loadUserData() {
@@ -65,7 +77,8 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
 
             currentUser?.let { user ->
                 binding.etDisplayName.setText(user.displayName)
-                binding.etBloodType.setText(user.bloodType)
+                // Veritabanındaki kan grubu değerini set et, ama filtreleme yapma (false)
+                binding.etBloodType.setText(user.bloodType, false)
             }
         }
     }
@@ -76,12 +89,10 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
 
         lifecycleScope.launch {
             try {
-                // Backend Update: Sadece profil bilgilerini güncelle, kontak listesini boş gönder
                 val request = CompleteProfileRequest(phone, name, blood, emptyList())
                 val response = ApiClient.api.completeProfile(request)
 
                 if (response.isSuccessful) {
-                    // Local DB Update
                     withContext(Dispatchers.IO) {
                         AppDatabase.getDatabase(requireContext()).userDao().updateUserProfile(phone, name, blood)
                     }

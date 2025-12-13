@@ -1,129 +1,101 @@
 package com.eneskocamaan.kenet
 
-import android.content.Context
-import android.net.wifi.p2p.WifiP2pManager
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
-import android.util.Log
 import android.view.View
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
 import com.eneskocamaan.kenet.data.db.AppDatabase
-import com.eneskocamaan.kenet.data.db.MessageEntity
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import org.json.JSONException
-import org.json.JSONObject
-import java.util.Date
+import kotlinx.coroutines.withContext
 
 class MainActivity : AppCompatActivity() {
 
-    private var manager: WifiP2pManager? = null
-    private var channel: WifiP2pManager.Channel? = null
-
-    // Cihazın kendi ID'sini SharedPreferences'tan okuyan yardımcı özellik
-    // (Bunu RegistrationFragment'ta kaydettiğini varsayıyoruz)
-    private val myDeviceId: String
-        get() = getSharedPreferences("AppPrefs", MODE_PRIVATE).getString("MY_DEVICE_ID", "MyDevice") ?: "MyDevice"
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val allGranted = permissions.entries.all { it.value }
+        if (allGranted) {
+            checkLoginAndStartService()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
 
-        // 1. Wi-Fi Manager Başlatma
-        manager = getSystemService(Context.WIFI_P2P_SERVICE) as? WifiP2pManager
-        channel = manager?.initialize(this, mainLooper, null)
+        // Veritabanı işlemleri için Context
+        SocketManager.init(this)
 
-        // Temiz Başlangıç
-        deletePersistentGroups()
-
-        // Tasarım Ayarları (Durum çubuğu renkleri)
         window.statusBarColor = getColor(R.color.background_dark)
         window.navigationBarColor = getColor(R.color.background_dark)
 
-        setContentView(R.layout.activity_main)
-
-        // Bottom Navigation Kurulumu (Görünürlük ayarları burada)
         setupBottomNav()
-
-        // --- MERKEZİ MESAJ DİNLEYİCİSİ ---
-        setupCentralMessageListener()
+        checkPermissionsAndLoginStatus()
     }
 
-    private fun setupCentralMessageListener() {
-        SocketManager.onMessageReceived = { incomingText ->
-            Log.d("KENET_MAIN", "Mesaj Ana Merkezde Yakalandı: $incomingText")
+    private fun checkPermissionsAndLoginStatus() {
+        val permissions = mutableListOf<String>()
+        permissions.add(Manifest.permission.ACCESS_FINE_LOCATION)
+        permissions.add(Manifest.permission.ACCESS_COARSE_LOCATION)
 
-            // Gelen veriyi JSON olarak parse etmeye çalışıyoruz.
-            // Beklenen Format: { "senderId": "CihazID", "msg": "Merhaba" }
-            try {
-                val jsonObject = JSONObject(incomingText)
-                val senderId = jsonObject.optString("senderId", "Unknown_Sender")
-                val messageContent = jsonObject.optString("msg", "")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            permissions.add(Manifest.permission.NEARBY_WIFI_DEVICES)
+        }
 
-                // Eğer mesaj içeriği boş değilse kaydet
-                if (messageContent.isNotEmpty()) {
-                    saveMessageToDb(messageContent, senderId)
+        val missingPermissions = permissions.filter {
+            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+        }
+
+        if (missingPermissions.isEmpty()) {
+            checkLoginAndStartService()
+        } else {
+            requestPermissionLauncher.launch(missingPermissions.toTypedArray())
+        }
+    }
+
+    private fun checkLoginAndStartService() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            val db = AppDatabase.getDatabase(applicationContext)
+            val myId = db.userDao().getMyUserId()
+
+            if (!myId.isNullOrEmpty()) {
+                withContext(Dispatchers.Main) {
+                    val serviceIntent = Intent(this@MainActivity, com.eneskocamaan.kenet.service.NetworkService::class.java)
+                    startService(serviceIntent)
                 }
-
-            } catch (e: JSONException) {
-                // Eğer gelen veri JSON formatında değilse (Eski versiyon veya düz metin)
-                Log.e("KENET_JSON", "Mesaj JSON değil, düz metin olarak işleniyor.")
-                saveMessageToDb(incomingText, null)
             }
         }
     }
 
-    private fun saveMessageToDb(text: String, explicitSenderId: String?) {
-        // Eğer JSON içinden ID geldiyse onu kullan, yoksa Global değişkene bak, o da yoksa "Unknown"
-        val partnerId = explicitSenderId ?: GlobalVariables.currentPeerAddress ?: "Unknown_Device"
-
-        val db = AppDatabase.getDatabase(this)
-        val myId = this.myDeviceId
-
-        val message = MessageEntity(
-            senderId = partnerId,
-            receiverId = myId,
-            chatPartnerId = partnerId, // Sohbet bu ID ile eşleşir
-            content = text,
-            timestamp = Date().time,
-            isSent = false, // Gelen Mesaj
-            isRead = false  // Okunmadı
-        )
-
-        lifecycleScope.launch(Dispatchers.IO) {
-            db.messageDao().insertMessage(message)
-            Log.d("KENET_DB", "Mesaj DB'ye yazıldı. Kimden: $partnerId - İçerik: $text")
-        }
-    }
-
     private fun setupBottomNav() {
-        val navHostFragment = supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as NavHostFragment
+        val navHostFragment = supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as? NavHostFragment ?: return
         val navController = navHostFragment.navController
         val bottomNav = findViewById<BottomNavigationView>(R.id.bottom_nav)
 
-        bottomNav.setupWithNavController(navController)
-
-        // Navigasyon hedefine göre BottomBar görünürlüğünü ayarla
-        navController.addOnDestinationChangedListener { _, destination, _ ->
-            when (destination.id) {
-                // ilk açılan ekranda gizle
-                R.id.splashFragment,
-
-                // 1. Giriş ve Profil Kurulumu (GİZLE)
-                R.id.loginFragment,
-                R.id.profileSetupFragment,
-                R.id.contactSelectionFragment,
-
-                // 2. Sohbet Detayı (GİZLE - Klavye açılacağı için)
-                R.id.chatDetailFragment -> {
-                    bottomNav.visibility = View.GONE
-                }
-
-                // 3. Ana Ekranlar (GÖSTER: Peers, Emergency, Settings)
-                else -> {
-                    bottomNav.visibility = View.VISIBLE
+        if (bottomNav != null) {
+            bottomNav.setupWithNavController(navController)
+            navController.addOnDestinationChangedListener { _, destination, _ ->
+                when (destination.id) {
+                    R.id.splashFragment,
+                    R.id.loginFragment,
+                    R.id.profileSetupFragment,
+                    R.id.contactSelectionFragment,
+                    R.id.chatDetailFragment -> {
+                        bottomNav.visibility = View.GONE
+                    }
+                    else -> {
+                        bottomNav.visibility = View.VISIBLE
+                    }
                 }
             }
         }
@@ -131,18 +103,11 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        deletePersistentGroups()
+        // --- TEMİZLİK OPERASYONU ---
+        // Uygulama kapatıldığında servisi de durdur ki arka planda hayalet bağlantı kalmasın.
+        val serviceIntent = Intent(this, com.eneskocamaan.kenet.service.NetworkService::class.java)
+        stopService(serviceIntent)
+
         SocketManager.close()
     }
-
-    private fun deletePersistentGroups() {
-        if (manager != null && channel != null) {
-            manager?.removeGroup(channel, null)
-        }
-    }
-}
-
-// Uygulama genelinde anlık bağlandığımız kişinin adresini tutmak için
-object GlobalVariables {
-    var currentPeerAddress: String? = null
 }

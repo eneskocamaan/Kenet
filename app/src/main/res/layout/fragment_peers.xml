@@ -4,73 +4,18 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background_dark"> <androidx.cardview.widget.CardView
-    android:id="@+id/status_card"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:layout_margin="16dp"
-    app:cardBackgroundColor="@color/card_background"
-    app:cardCornerRadius="12dp"
-    app:cardElevation="4dp"
-    app:layout_constraintTop_toTopOf="parent"
-    app:layout_constraintStart_toStartOf="parent"
-    app:layout_constraintEnd_toEndOf="parent">
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="16dp">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="KENET Ağı Durumu"
-            android:textColor="@color/primary_color"
-            android:textSize="14sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/tv_peer_status"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="Hazır. Taramaya başlayabilirsiniz."
-            android:textColor="@color/text_secondary"
-            android:textSize="16sp" />
-    </LinearLayout>
-</androidx.cardview.widget.CardView>
+    android:background="@color/background_dark">
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recycler_peers"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_marginTop="8dp"
         android:clipToPadding="false"
-        android:paddingBottom="80dp"
-        app:layout_constraintTop_toBottomOf="@id/status_card"
+        android:paddingVertical="8dp"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        tools:listitem="@layout/item_peer" />
-
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/btn_discover_peers"
-        android:layout_width="0dp"
-        android:layout_height="60dp"
-        android:layout_margin="24dp"
-        android:text="Cihazları Tara"
-        android:textColor="@color/white"
-        android:textSize="16sp"
-        android:textStyle="bold"
-        android:backgroundTint="@color/primary_color"
-        app:cornerRadius="30dp"
-        app:icon="@android:drawable/ic_menu_search"
-        app:iconGravity="textStart"
-        app:iconPadding="12dp"
-        app:iconTint="@color/white"
-        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintTop_toTopOf="parent"
+        tools:listitem="@layout/item_peer" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

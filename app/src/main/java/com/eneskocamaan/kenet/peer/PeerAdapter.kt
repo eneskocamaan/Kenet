@@ -1,64 +1,94 @@
-package com.eneskocamaan.kenet
+package com.eneskocamaan.kenet.peer
 
-import android.net.wifi.p2p.WifiP2pDevice
+import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import com.eneskocamaan.kenet.R
+import com.eneskocamaan.kenet.data.db.ContactEntity
+import com.eneskocamaan.kenet.data.db.ContactWithUnreadCount
 
 class PeerAdapter(
-    private val peers: List<WifiP2pDevice>,
-    // YENİ EKLENEN: Hangi cihazda kaç mesaj var haritası (MAC Adresi -> Sayı)
-    private val unreadCounts: Map<String, Int>,
-    private val onClick: (WifiP2pDevice) -> Unit
+    // TİP DEĞİŞTİ: Artık wrapper sınıfı alıyor
+    private var contactsList: List<ContactWithUnreadCount>,
+    private val onClick: (ContactEntity) -> Unit
 ) : RecyclerView.Adapter<PeerAdapter.PeerViewHolder>() {
 
     class PeerViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        val tvDeviceName: TextView = view.findViewById(R.id.tv_device_name)
-        val tvDeviceAddress: TextView = view.findViewById(R.id.tv_device_address)
-        // YENİ EKLENEN: Bildirim Rozeti (item_peer.xml içindeki ID)
-        val tvBadge: TextView = view.findViewById(R.id.tv_badge_count)
+        val tvName: TextView = view.findViewById(R.id.tv_contact_name)
+        val tvAvatarLetter: TextView = view.findViewById(R.id.tv_avatar_letter)
+        val tvKenetStatus: TextView = view.findViewById(R.id.tv_kenet_status)
+        val tvLocationStatus: TextView = view.findViewById(R.id.tv_location_status)
+        // YENİ: Bildirim Rozeti
+        val tvBadge: TextView = view.findViewById(R.id.tv_unread_badge)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PeerViewHolder {
-        // item_peer layout'unu kullanıyoruz
         val view = LayoutInflater.from(parent.context)
             .inflate(R.layout.item_peer, parent, false)
         return PeerViewHolder(view)
     }
 
     override fun onBindViewHolder(holder: PeerViewHolder, position: Int) {
-        val device = peers[position]
-        holder.tvDeviceName.text = device.deviceName
+        // Wrapper'dan verileri ayır
+        val item = contactsList[position]
+        val contact = item.contact
+        val unreadCount = item.unreadCount
+        val context = holder.itemView.context
 
-        // Cihaz Durumunu Türkçe Yazdırma
-        val statusText = when(device.status) {
-            WifiP2pDevice.AVAILABLE -> "Bağlanmaya Hazır"
-            WifiP2pDevice.INVITED -> "Davet Gönderildi..."
-            WifiP2pDevice.CONNECTED -> "Bağlı"
-            WifiP2pDevice.FAILED -> "Hata"
-            WifiP2pDevice.UNAVAILABLE -> "Ulaşılamıyor"
-            else -> "Bilinmiyor"
-        }
-        holder.tvDeviceAddress.text = statusText
-
-        // --- ROZET (BADGE) MANTIĞI ---
-        // Bu cihazın adresine (MAC) ait okunmamış mesaj sayısını al
-        val count = unreadCounts[device.deviceAddress] ?: 0
-
-        if (count > 0) {
-            // Mesaj varsa sayıyı yaz ve görünür yap
-            holder.tvBadge.text = count.toString()
+        // 1. Bildirim Rozeti Mantığı
+        if (unreadCount > 0) {
+            holder.tvBadge.text = unreadCount.toString()
             holder.tvBadge.visibility = View.VISIBLE
         } else {
-            // Mesaj yoksa gizle
             holder.tvBadge.visibility = View.GONE
         }
 
-        // Tıklama olayını tetikle
-        holder.itemView.setOnClickListener { onClick(device) }
+        // --- Diğer kodlar aynı, sadece 'contact' objesini kullanıyoruz ---
+
+        holder.tvName.text = contact.contactName
+        if (contact.contactName.isNotEmpty()) {
+            holder.tvAvatarLetter.text = contact.contactName.first().uppercase()
+        } else {
+            holder.tvAvatarLetter.text = "?"
+        }
+
+        // Kenet Durumu
+        if (!contact.contactServerId.isNullOrEmpty()) {
+            holder.tvKenetStatus.text = "Kenet Ağı"
+            holder.tvKenetStatus.setTextColor(Color.parseColor("#4CAF50"))
+        } else {
+            holder.tvKenetStatus.text = "Kenet Kullanmıyor"
+            holder.tvKenetStatus.setTextColor(Color.parseColor("#cc4e4e"))
+        }
+
+        // Konum Durumu
+        val lat = contact.contactLatitude
+        val lng = contact.contactLongitude
+        val hasLocation = (lat != null && lat != 0.0) && (lng != null && lng != 0.0)
+
+        val dotDrawable = holder.tvLocationStatus.compoundDrawablesRelative[0]
+
+        if (hasLocation) {
+            holder.tvLocationStatus.text = "Konum Biliniyor"
+            holder.tvLocationStatus.setTextColor(context.getColor(R.color.text_secondary))
+            dotDrawable?.setTint(context.getColor(R.color.primary_color))
+        } else {
+            holder.tvLocationStatus.text = "Konum Bilinmiyor"
+            holder.tvLocationStatus.setTextColor(Color.parseColor("#808080"))
+            dotDrawable?.setTint(Color.parseColor("#606060"))
+        }
+
+        // Tıklama olayında orijinal 'contact' nesnesini gönder
+        holder.itemView.setOnClickListener { onClick(contact) }
     }
 
-    override fun getItemCount() = peers.size
+    override fun getItemCount() = contactsList.size
+
+    fun updateList(newContacts: List<ContactWithUnreadCount>) {
+        this.contactsList = newContacts
+        notifyDataSetChanged()
+    }
 }

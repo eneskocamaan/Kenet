@@ -2,11 +2,11 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-    // DÜZELTME BURADA: 'apply false' ifadesini sildik.
     alias(libs.plugins.ksp)
-    // Eğer SafeArgs kullanacaksan aşağıdaki satırı da eklemelisin (Previous context):
     alias(libs.plugins.androidx.navigation.safeargs.kotlin)
     id("kotlin-parcelize")
+    // EKLENDİ: Protobuf Plugin
+    id("com.google.protobuf") version "0.9.4"
 }
 
 android {
@@ -72,7 +72,6 @@ dependencies {
     val room_version = "2.6.1"
     implementation("androidx.room:room-runtime:$room_version")
     implementation("androidx.room:room-ktx:$room_version")
-    // KSP eklentisi yukarıda aktif edildiği için bu satır artık çalışacaktır
     ksp("androidx.room:room-compiler:$room_version")
 
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
@@ -81,4 +80,22 @@ dependencies {
 
     implementation("com.google.android.gms:play-services-location:21.3.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
+
+    // EKLENDİ: Protobuf Lite Kütüphanesi (Mobil için optimize edilmiş versiyon)
+    implementation("com.google.protobuf:protobuf-javalite:3.24.4")
+}
+
+protobuf {
+    protoc {
+        artifact = "com.google.protobuf:protoc:3.24.4"
+    }
+    generateProtoTasks {
+        all().forEach { task ->
+            task.builtins {
+                create("java") {
+                    option("lite")
+                }
+            }
+        }
+    }
 }

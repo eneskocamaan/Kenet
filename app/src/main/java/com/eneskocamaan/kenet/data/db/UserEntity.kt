@@ -5,26 +5,19 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "user_profile")
 data class UserEntity(
-    // Benim sabit ID'm (Backend'den türetilen 8 karakterli ID)
     @PrimaryKey
-    val userId: String,
+    val userId: String,         // Benim Kenet ID'm
 
-    // Telefon numarası (Afet durumunda iletişim için kritik)
-    val phoneNumber: String,
+    val phoneNumber: String,    // Telefon Numaram
+    val displayName: String,    // Görünen Adım
 
-    // Kullanıcının adı (Diğer kullanıcıların rehberinde görünür)
-    val displayName: String,
-
-    // Güvenlik Anahtarları (Backend'den gelen IBE Private Key)
+    // Şifreleme Anahtarları (IBE)
     val privateKey: String,
-
-    // Sistemin genel şifreleme parametreleri (IBE Public Parameters)
     val publicParams: String,
 
-    // Opsiyonel afet bilgisi
     val bloodType: String? = null,
 
-    // [YENİ] Kullanıcının Kendi Anlık Konumu (GPSR için zorunlu)
+    // Kendi anlık konumum (GPSR paketlerine eklemek için)
     val latitude: Double? = null,
     val longitude: Double? = null
 )

@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    app:cardBackgroundColor="@color/card_background"
+    app:cardCornerRadius="24dp"
+    app:strokeWidth="0dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Gönderim Modu"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:textColor="@color/white"
+            android:gravity="center_horizontal"
+            android:layout_marginBottom="24dp"/>
+
+        <RadioGroup
+            android:id="@+id/radio_group_modes"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                app:cardBackgroundColor="#2A2A2A"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/text_gray"
+                app:strokeWidth="1dp">
+
+                <RadioButton
+                    android:id="@+id/rb_mode_known_location"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Bilinen Konuma Gönder"
+                    android:textColor="@color/white"
+                    android:padding="16dp"
+                    android:textSize="16sp"
+                    android:buttonTint="@color/accent_color"/>
+            </com.google.android.material.card.MaterialCardView>
+
+            <LinearLayout
+                android:id="@+id/layout_error_info"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:visibility="gone"
+                android:paddingStart="4dp"
+                android:layout_marginBottom="16dp">
+
+                <ImageView
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:src="@android:drawable/stat_notify_error"
+                    app:tint="#FF5252"
+                    android:layout_gravity="center_vertical"
+                    android:layout_marginEnd="8dp"/>
+
+                <TextView
+                    android:id="@+id/tv_mode_1_info"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Konum bilgisi eksik, bu mod kullanılamaz."
+                    android:textColor="#FF5252"
+                    android:textSize="12sp"/>
+            </LinearLayout>
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardBackgroundColor="#2A2A2A"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/text_gray"
+                app:strokeWidth="1dp">
+
+                <RadioButton
+                    android:id="@+id/rb_mode_rediscover"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Yeniden Keşfet ve Gönder"
+                    android:textColor="@color/white"
+                    android:padding="16dp"
+                    android:textSize="16sp"
+                    android:buttonTint="@color/accent_color"/>
+            </com.google.android.material.card.MaterialCardView>
+        </RadioGroup>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="Güvenli mod (Keşfet), cihazı tekrar bulup teyit ederek gönderim yapar."
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp"
+            android:gravity="center"
+            android:alpha="0.7"/>
+
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package com.eneskocamaan.kenet.proto;
+
+option java_package = "com.eneskocamaan.kenet.proto";
+option java_multiple_files = true;
+
+// --- ANA PAKET (WRAPPER) ---
+message KenetPacket {
+    enum PacketType {
+        UNKNOWN = 0;
+        DISCOVERY = 1; // Keşif Paketi
+        REPLY = 2;     // Cevap Paketi
+        MESSAGE = 3;   // Mesaj Paketi
+    }
+
+    PacketType type = 1;
+
+    oneof payload {
+        DiscoveryPacket discovery = 2;
+        ReplyPacket reply = 3;
+        MessagePacket message = 4;
+    }
+}
+
+// --- 1. KEŞİF PAKETİ (ARAMA) ---
+message DiscoveryPacket {
+    string packet_uid = 1;
+    string sender_id = 2;
+    string target_id = 3;
+
+    double sender_lat = 4;
+    double sender_lng = 5;
+
+    int32 ttl = 6;
+    int64 timestamp = 7;
+}
+
+// --- 2. CEVAP PAKETİ (BULUNDU) ---
+message ReplyPacket {
+    string packet_uid = 1;
+    string sender_id = 2;
+    string target_id = 3;
+
+    double sender_lat = 4;
+    double sender_lng = 5;
+
+    double target_lat = 6;
+    double target_lng = 7;
+
+    int32 ttl = 8;
+    int64 timestamp = 9;
+}
+
+// --- 3. MESAJ PAKETİ (İLETİŞİM) ---
+message MessagePacket {
+    string packet_uid = 1;
+    string sender_id = 2;
+    string target_id = 3;
+
+    double sender_lat = 4;
+    double sender_lng = 5;
+    double target_lat = 6;
+    double target_lng = 7;
+
+    int32 ttl = 8;
+    int64 timestamp = 9;
+
+    string content_text = 10;
+    bytes encrypted_payload = 11;
+    bytes signature = 12;
+}

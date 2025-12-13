@@ -8,17 +8,22 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface MessageDao {
+
+    // Belirli bir kişiyle olan mesajları zamana göre sıralı getir
     @Query("SELECT * FROM messages WHERE chatPartnerId = :targetAddress ORDER BY timestamp ASC")
     fun getMessagesWith(targetAddress: String): Flow<List<MessageEntity>>
 
-    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    // Mesaj ekle (Çakışma olursa eskisiyle değiştir - REPLACE daha güvenlidir)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMessage(message: MessageEntity)
 
-    @Query("UPDATE messages SET isRead = 1 WHERE chatPartnerId = :partnerId AND isRead = 0")
-    suspend fun markMessagesAsRead(partnerId: String)
+    // --- KRİTİK DÜZELTME BURADA ---
+    // Sohbet açıldığında, sadece o kişiden 'GELEN' (isSent=0) ve 'OKUNMAMIŞ' (isRead=0)
+    // mesajları okundu olarak işaretle. Kendi gönderdiklerimizi bozmaz.
+    @Query("UPDATE messages SET isRead = 1 WHERE chatPartnerId = :chatPartnerId AND isRead = 0 AND isSent = 0")
+    suspend fun markMessagesAsRead(chatPartnerId: String)
 
-    // YENİ: Okunmamış tüm mesajları getir (Flow ile canlı takip)
-    // PeersFragment bunu dinleyecek ve rozetleri güncelleyecek.
-    @Query("SELECT * FROM messages WHERE isRead = 0")
+    // Tüm okunmamış GELEN mesajları getir (Bildirim rozeti için)
+    @Query("SELECT * FROM messages WHERE isRead = 0 AND isSent = 0")
     fun getAllUnreadMessages(): Flow<List<MessageEntity>>
 }

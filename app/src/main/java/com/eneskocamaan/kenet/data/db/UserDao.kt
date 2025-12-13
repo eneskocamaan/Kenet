@@ -15,6 +15,14 @@ interface UserDao {
     suspend fun getUserProfile(): UserEntity?
 
     /**
+     * [YENİ EKLENEN]
+     * Sohbet ekranında mesaj gönderirken "senderId" olarak kullanmak için
+     * sadece ID'yi çeker. Tüm profili yüklemekten daha hızlıdır.
+     */
+    @Query("SELECT userId FROM user_profile LIMIT 1")
+    suspend fun getMyUserId(): String?
+
+    /**
      * Yeni bir kullanıcıyı veritabanına ekler veya mevcut bir kullanıcıyı tamamen günceller.
      */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -26,5 +34,4 @@ interface UserDao {
      */
     @Query("UPDATE user_profile SET displayName = :displayName, bloodType = :bloodType WHERE phoneNumber = :phoneNumber")
     suspend fun updateUserProfile(phoneNumber: String, displayName: String, bloodType: String?)
-
 }
