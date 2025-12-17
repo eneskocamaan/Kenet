@@ -1,9 +1,9 @@
 package com.eneskocamaan.kenet.peer
 
-import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.eneskocamaan.kenet.R
@@ -14,37 +14,36 @@ import java.util.Locale
 
 class MessageAdapter(
     private val messages: MutableList<MessageEntity>
-    // currentUserId parametresini kaldırdık, çünkü isSent flag'ini kullanacağız.
-) : RecyclerView.Adapter<MessageAdapter.MessageViewHolder>() {
+) : RecyclerView.Adapter<RecyclerView.ViewHolder>() { // Generic ViewHolder yaptık
 
     private val VIEW_TYPE_MESSAGE_SENT = 1
     private val VIEW_TYPE_MESSAGE_RECEIVED = 2
 
     override fun getItemViewType(position: Int): Int {
-        val message = messages[position]
-
-        // DÜZELTME BURADA:
-        // ID karşılaştırması yerine veritabanındaki kesin bilgiye güveniyoruz.
-        // isSent = true ise mesajı biz göndermişizdir -> SAĞDA GÖSTER
-        return if (message.isSent) {
+        return if (messages[position].isSent) {
             VIEW_TYPE_MESSAGE_SENT
         } else {
             VIEW_TYPE_MESSAGE_RECEIVED
         }
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MessageViewHolder {
-        val layoutRes = if (viewType == VIEW_TYPE_MESSAGE_SENT) {
-            R.layout.item_message_sent     // Sağ Balon
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+        return if (viewType == VIEW_TYPE_MESSAGE_SENT) {
+            val view = LayoutInflater.from(parent.context).inflate(R.layout.item_message_sent, parent, false)
+            SentMessageViewHolder(view)
         } else {
-            R.layout.item_message_received // Sol Balon
+            val view = LayoutInflater.from(parent.context).inflate(R.layout.item_message_received, parent, false)
+            ReceivedMessageViewHolder(view)
         }
-        val view = LayoutInflater.from(parent.context).inflate(layoutRes, parent, false)
-        return MessageViewHolder(view)
     }
 
-    override fun onBindViewHolder(holder: MessageViewHolder, position: Int) {
-        holder.bind(messages[position])
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+        val message = messages[position]
+        if (holder is SentMessageViewHolder) {
+            holder.bind(message)
+        } else if (holder is ReceivedMessageViewHolder) {
+            holder.bind(message)
+        }
     }
 
     override fun getItemCount(): Int = messages.size
@@ -55,25 +54,46 @@ class MessageAdapter(
         notifyDataSetChanged()
     }
 
-    class MessageViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+    // --- GİDEN MESAJ (Sağ Balon) ---
+    class SentMessageViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        private val messageText: TextView = itemView.findViewById(R.id.text_message_body)
+        private val timeText: TextView = itemView.findViewById(R.id.text_message_time)
+        private val statusIcon: ImageView = itemView.findViewById(R.id.image_message_status)
+
+        fun bind(message: MessageEntity) {
+            messageText.text = message.content
+            timeText.text = formatTime(message.timestamp)
+
+            // DURUM İKONU BELİRLEME
+            // 0: Pending (Saat)
+            // 1: Sent (Tek Tik)
+            // 2: Delivered/Ack (Çift Tik)
+            val iconRes = when (message.status) {
+                0 -> R.drawable.ic_clock_gray
+                1 -> R.drawable.ic_check_gray
+                2 -> R.drawable.ic_double_check_blue
+                else -> R.drawable.ic_clock_gray
+            }
+            statusIcon.setImageResource(iconRes)
+        }
+    }
+
+    // --- GELEN MESAJ (Sol Balon) ---
+    class ReceivedMessageViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val messageText: TextView = itemView.findViewById(R.id.text_message_body)
         private val timeText: TextView = itemView.findViewById(R.id.text_message_time)
 
         fun bind(message: MessageEntity) {
-            // Mesaj İçeriği
             messageText.text = message.content
-            messageText.setTextColor(Color.WHITE)
+            timeText.text = formatTime(message.timestamp)
+        }
+    }
 
-            // Saat Gösterimi (Timestamp -> HH:mm)
-            if (message.timestamp > 0) {
-                val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
-                val timeString = sdf.format(Date(message.timestamp))
-                timeText.text = timeString
-                timeText.visibility = View.VISIBLE
-            } else {
-                timeText.text = ""
-                timeText.visibility = View.GONE
-            }
+    companion object {
+        fun formatTime(timestamp: Long): String {
+            return if (timestamp > 0) {
+                SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(timestamp))
+            } else ""
         }
     }
 }

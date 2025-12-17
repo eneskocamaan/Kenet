@@ -8,15 +8,19 @@ data class MessageEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0L,
 
-    val senderId: String,       // Gönderen Cihaz ID
-    val receiverId: String,     // Alıcı Cihaz ID
-
-    // Sohbet ekranında mesajları gruplamak için kullanılır.
-    // Gelen mesajda -> senderId, Giden mesajda -> receiverId
+    val packetUid: String,
+    val senderId: String,
+    val receiverId: String,
     val chatPartnerId: String,
-
-    val content: String,        // Mesaj Metni (Şimdilik açık metin)
+    val content: String,
     val timestamp: Long,
-    val isSent: Boolean,        // True: Giden (Sağ), False: Gelen (Sol)
-    val isRead: Boolean = false
+
+    val isSent: Boolean,
+
+    // 0: PENDING (Bekliyor/Gönderilemedi - DTN)
+    // 1: SENT (Ağa iletildi)
+    // 2: DELIVERED (Karşı taraf aldı - ACK Geldi)
+    val status: Int = 1,
+
+    val isRead: Boolean = false // UI'da benim okumam
 )

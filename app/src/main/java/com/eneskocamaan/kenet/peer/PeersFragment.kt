@@ -1,8 +1,9 @@
 package com.eneskocamaan.kenet.peer
 
+import android.os.Build
 import android.os.Bundle
-import android.util.Log
 import android.view.View
+import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
@@ -18,7 +19,6 @@ class PeersFragment : Fragment(R.layout.fragment_peers) {
 
     private var _binding: FragmentPeersBinding? = null
     private val binding get() = _binding!!
-
     private lateinit var adapter: PeerAdapter
     private val db by lazy { AppDatabase.getDatabase(requireContext()) }
 
@@ -27,7 +27,7 @@ class PeersFragment : Fragment(R.layout.fragment_peers) {
         _binding = FragmentPeersBinding.bind(view)
 
         adapter = PeerAdapter(emptyList()) { contact ->
-            navigateToChat(contact)
+            checkVersionAndNavigate(contact)
         }
 
         binding.recyclerPeers.apply {
@@ -40,47 +40,37 @@ class PeersFragment : Fragment(R.layout.fragment_peers) {
 
     private fun observeContacts() {
         lifecycleScope.launch {
-            // YENİ METOT: Hem kişileri hem sayaçları dinle
-            db.contactDao().getContactsWithUnreadCounts().collect { contactsWithCount ->
-
-                // --- SIRALAMA MANTIĞI ---
-                // 1. Okunmamış mesajı olanlar EN ÜSTTE
-                // 2. Sonra Kenet kullanıcıları
-                val sortedContacts = contactsWithCount.sortedWith(
+            db.contactDao().getContactsWithUnreadCounts().collect { contacts ->
+                val sorted = contacts.sortedWith(
                     compareByDescending<ContactWithUnreadCount> { it.unreadCount > 0 }
                         .thenByDescending { !it.contact.contactServerId.isNullOrEmpty() }
                 )
-
-                adapter.updateList(sortedContacts)
+                adapter.updateList(sorted)
             }
         }
     }
 
-    private fun navigateToChat(contact: ContactEntity) {
-        val targetId = if (!contact.contactServerId.isNullOrEmpty()) {
-            contact.contactServerId
-        } else {
-            contact.contactPhoneNumber
-        }
-
-        if (targetId.isNullOrEmpty()) {
-            Log.e("KENET_NAV", "Hata: ID yok.")
+    private fun checkVersionAndNavigate(contact: ContactEntity) {
+        // --- ESKİ CİHAZ ENGELİ ---
+        // Android 9.0 (API 28) ve altı engellensin
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
+            AlertDialog.Builder(requireContext())
+                .setTitle("Cihaz Desteklenmiyor")
+                .setMessage("Bu özellik yüksek performanslı ağ işlemleri gerektirir.\n\nCihazınızın Android sürümü (Android 9.0 altı) bu özelliği kararlı bir şekilde çalıştıramaz.")
+                .setPositiveButton("Anladım", null)
+                .show()
             return
         }
 
-        try {
-            val bundle = Bundle().apply {
-                putString("deviceAddress", targetId)
-                putString("deviceName", contact.contactName)
-                putBoolean("isRegistered", !contact.contactServerId.isNullOrEmpty())
-            }
+        // Destekliyorsa devam et
+        val targetId = contact.contactServerId ?: contact.contactPhoneNumber
+        if (targetId.isNullOrEmpty()) return
 
-            if (isAdded && findNavController().currentDestination?.id == R.id.peersFragment) {
-                findNavController().navigate(R.id.action_peersFragment_to_chatDetailFragment, bundle)
-            }
-        } catch (e: Exception) {
-            Log.e("KENET_NAV", "Navigasyon hatası: ${e.message}")
+        val bundle = Bundle().apply {
+            putString("deviceAddress", targetId)
+            putString("deviceName", contact.contactName)
         }
+        findNavController().navigate(R.id.action_peersFragment_to_chatDetailFragment, bundle)
     }
 
     override fun onDestroyView() {

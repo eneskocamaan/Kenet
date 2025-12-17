@@ -46,4 +46,8 @@ interface ContactDao {
     // Konum güncelleme (SocketManager kullanır)
     @Query("UPDATE contacts SET contactLatitude = :lat, contactLongitude = :lng WHERE contactServerId = :id OR contactPhoneNumber = :id")
     suspend fun updateContactLocation(id: String, lat: Double, lng: Double)
+
+    @Query("SELECT * FROM contacts")
+    fun getAllContactsList(): List<ContactEntity>
+
 }

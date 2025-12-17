@@ -3,6 +3,8 @@ package com.eneskocamaan.kenet.registration
 import android.annotation.SuppressLint
 import android.os.Bundle
 import android.provider.ContactsContract
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.View
 import android.widget.Toast
 import androidx.core.os.bundleOf
@@ -15,6 +17,7 @@ import com.eneskocamaan.kenet.R
 import com.eneskocamaan.kenet.data.api.ApiClient
 import com.eneskocamaan.kenet.data.api.CheckContactsRequest
 import com.eneskocamaan.kenet.data.api.ContactModel
+import com.eneskocamaan.kenet.data.db.AppDatabase
 import com.eneskocamaan.kenet.databinding.FragmentContactSelectionBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -26,17 +29,25 @@ class ContactSelectionFragment : Fragment(R.layout.fragment_contact_selection) {
     private val binding get() = _binding!!
     private lateinit var adapter: ContactsAdapter
 
+    // Veritabanı referansı
+    private val db by lazy { AppDatabase.getDatabase(requireContext()) }
+
+    // Orijinal listeyi hafızada tutuyoruz, arama yapınca filtreleyip buna döneceğiz
+    private var fullContactList = listOf<ContactModel>()
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         _binding = FragmentContactSelectionBinding.bind(view)
 
         setupRecyclerView()
+        setupSearch() // Arama dinleyicisi
 
-        // Rehberi Yükle ve Sunucuyla Eşleştir
+        // Rehberi Yükle, DB ile eşleştir ve Sunucuyla Kontrol Et
         loadAndCheckContacts()
 
         binding.btnConfirmSelection.setOnClickListener {
-            val selectedContacts = adapter.getSelectedContacts()
+            // Sadece görünür olanlar değil, ana listedeki seçili olanları al
+            val selectedContacts = fullContactList.filter { it.isSelected }
             setFragmentResult("requestKey_contacts", bundleOf("selected_contacts" to ArrayList(selectedContacts)))
             findNavController().popBackStack()
         }
@@ -44,10 +55,41 @@ class ContactSelectionFragment : Fragment(R.layout.fragment_contact_selection) {
 
     private fun setupRecyclerView() {
         adapter = ContactsAdapter { count ->
-            binding.btnConfirmSelection.text = "Seçimi Onayla ($count)"
+            // Arama yaparken liste küçüldüğü için, toplam seçili sayısını
+            // ana liste üzerinden hesaplamak daha doğru olur.
+            val totalSelected = fullContactList.count { it.isSelected }
+            binding.btnConfirmSelection.text = "Seçimi Onayla ($totalSelected)"
         }
         binding.rvContacts.layoutManager = LinearLayoutManager(requireContext())
         binding.rvContacts.adapter = adapter
+    }
+
+    // --- 1. ARAMA MANTIĞI ---
+    private fun setupSearch() {
+        binding.etSearch.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                filterList(s.toString())
+            }
+
+            override fun afterTextChanged(s: Editable?) {}
+        })
+    }
+
+    private fun filterList(query: String) {
+        val lowerQuery = query.lowercase().trim()
+
+        if (lowerQuery.isEmpty()) {
+            adapter.submitList(fullContactList)
+        } else {
+            val filteredList = fullContactList.filter { contact ->
+                // İsimde VEYA numarada ara
+                contact.display_name.lowercase().contains(lowerQuery) ||
+                        contact.phone_number.contains(lowerQuery)
+            }
+            adapter.submitList(filteredList)
+        }
     }
 
     @SuppressLint("Range")
@@ -55,7 +97,11 @@ class ContactSelectionFragment : Fragment(R.layout.fragment_contact_selection) {
         binding.pbLoading.visibility = View.VISIBLE
 
         lifecycleScope.launch(Dispatchers.IO) {
-            // 1. Yerel Rehberi Çek (Temizlenmiş numaralarla)
+            // A. Veritabanındaki (zaten ekli) kişileri çek
+            val existingContacts = db.contactDao().getAllContactsList() // Dao'ya bu metodu eklemen gerekebilir (List dönecek)
+            val existingNumbers = existingContacts.map { it.contactPhoneNumber } // Sadece numaraları al
+
+            // B. Yerel Rehberi Çek
             val localContacts = getLocalContacts()
 
             if (localContacts.isEmpty()) {
@@ -66,67 +112,62 @@ class ContactSelectionFragment : Fragment(R.layout.fragment_contact_selection) {
                 return@launch
             }
 
-            try {
-                // 2. Numaraları Listele (Temizlenmiş formatta)
-                val phoneNumbersToSend = localContacts.map { it.phone_number }
+            // --- 2. ZATEN EKLİ OLANLARI İŞARETLE (TIK KOY) ---
+            localContacts.forEach { contact ->
+                if (existingNumbers.contains(contact.phone_number)) {
+                    contact.isSelected = true
+                }
+            }
 
-                // 3. Backend'e Sorgu At
+            try {
+                // C. Backend Kontrolü (Kenet Kullanıcısı mı?)
+                val phoneNumbersToSend = localContacts.map { it.phone_number }
                 val request = CheckContactsRequest(phoneNumbersToSend)
                 val response = ApiClient.api.checkContacts(request)
 
                 if (response.isSuccessful && response.body() != null) {
                     val registeredNumbers = response.body()!!.registeredNumbers
 
-                    // 4. Listeyi Güncelle: Eşleşenleri işaretle
-                    val updatedList = localContacts.map { contact ->
-                        // İki taraf da temiz olduğu için (532...) eşleşme başarılı olur.
+                    // Kenet kullananları işaretle
+                    localContacts.forEach { contact ->
                         if (registeredNumbers.contains(contact.phone_number)) {
                             contact.isKenetUser = true
                         }
-                        contact
-                    }.sortedByDescending { it.isKenetUser } // Kenet kullananlar en üstte
-
-                    withContext(Dispatchers.Main) {
-                        if (_binding != null) adapter.submitList(updatedList)
-                    }
-                } else {
-                    // API Hatası varsa normal listeyi göster
-                    withContext(Dispatchers.Main) {
-                        if (_binding != null) adapter.submitList(localContacts)
                     }
                 }
-
             } catch (e: Exception) {
-                // İnternet yoksa normal listeyi göster
-                withContext(Dispatchers.Main) {
-                    if (_binding != null) adapter.submitList(localContacts)
-                }
-            } finally {
-                withContext(Dispatchers.Main) {
-                    if (_binding != null) binding.pbLoading.visibility = View.GONE
+                // Hata olursa devam et (Sadece Kenet rozeti gözükmez)
+            }
+
+            // D. Listeyi Sırala:
+            // 1. Kenet Kullanıcıları -> 2. Alfabetik
+            val sortedList = localContacts.sortedWith(
+                compareByDescending<ContactModel> { it.isKenetUser }
+                    .thenBy { it.display_name }
+            )
+
+            // Ana listeyi güncelle
+            fullContactList = sortedList
+
+            withContext(Dispatchers.Main) {
+                if (_binding != null) {
+                    adapter.submitList(fullContactList)
+
+                    // Başlangıçta seçili sayısını butona yaz
+                    val count = fullContactList.count { it.isSelected }
+                    binding.btnConfirmSelection.text = "Seçimi Onayla ($count)"
+
+                    binding.pbLoading.visibility = View.GONE
                 }
             }
         }
     }
 
-    /**
-     * Numarayı veritabanı formatına (10 hane, başında 0 yok) çevirir.
-     * Örn: +90 532 123 -> 532123
-     */
+    // ... (sanitizePhoneNumber ve getLocalContacts metodları aynen kalacak) ...
     private fun sanitizePhoneNumber(phone: String): String {
-        // 1. Sadece rakamları al (+ işaretini atar)
         var p = phone.replace("[^0-9]".toRegex(), "")
-
-        // 2. 90 ile başlıyorsa (ülke kodu) sil
-        if (p.startsWith("90") && p.length > 10) {
-            p = p.substring(2)
-        }
-
-        // 3. Başındaki '0'ı sil
-        if (p.startsWith("0")) {
-            p = p.substring(1)
-        }
-
+        if (p.startsWith("90") && p.length > 10) p = p.substring(2)
+        if (p.startsWith("0")) p = p.substring(1)
         return p
     }
 
@@ -136,7 +177,7 @@ class ContactSelectionFragment : Fragment(R.layout.fragment_contact_selection) {
         val cursor = requireContext().contentResolver.query(
             ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
             null, null, null,
-            ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME + " ASC"
+            null
         )
 
         cursor?.use {
@@ -145,17 +186,9 @@ class ContactSelectionFragment : Fragment(R.layout.fragment_contact_selection) {
                 val rawPhone = it.getString(it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER))
 
                 if (!name.isNullOrEmpty() && !rawPhone.isNullOrEmpty()) {
-                    // DÜZELTME: Listeye eklemeden önce numarayı temizliyoruz
                     val cleanPhone = sanitizePhoneNumber(rawPhone)
-
-                    // Geçerli bir numara mı (En az 10 hane) ve tekrar ediyor mu?
                     if (cleanPhone.length >= 10 && !contactList.any { c -> c.phone_number == cleanPhone }) {
-                        contactList.add(
-                            ContactModel(
-                                phone_number = cleanPhone,
-                                display_name = name
-                            )
-                        )
+                        contactList.add(ContactModel(phone_number = cleanPhone, display_name = name))
                     }
                 }
             }

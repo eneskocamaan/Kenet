@@ -8,22 +8,24 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface MessageDao {
-
-    // Belirli bir kişiyle olan mesajları zamana göre sıralı getir
     @Query("SELECT * FROM messages WHERE chatPartnerId = :targetAddress ORDER BY timestamp ASC")
     fun getMessagesWith(targetAddress: String): Flow<List<MessageEntity>>
 
-    // Mesaj ekle (Çakışma olursa eskisiyle değiştir - REPLACE daha güvenlidir)
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMessage(message: MessageEntity)
 
-    // --- KRİTİK DÜZELTME BURADA ---
-    // Sohbet açıldığında, sadece o kişiden 'GELEN' (isSent=0) ve 'OKUNMAMIŞ' (isRead=0)
-    // mesajları okundu olarak işaretle. Kendi gönderdiklerimizi bozmaz.
     @Query("UPDATE messages SET isRead = 1 WHERE chatPartnerId = :chatPartnerId AND isRead = 0 AND isSent = 0")
     suspend fun markMessagesAsRead(chatPartnerId: String)
 
-    // Tüm okunmamış GELEN mesajları getir (Bildirim rozeti için)
-    @Query("SELECT * FROM messages WHERE isRead = 0 AND isSent = 0")
-    fun getAllUnreadMessages(): Flow<List<MessageEntity>>
+    // ACK Geldiğinde durumu güncelle (SENT -> DELIVERED)
+    @Query("UPDATE messages SET status = 2 WHERE packetUid = :packetUid")
+    suspend fun markMessageAsDelivered(packetUid: String)
+
+    // DTN: Bekleyen mesajları getir
+    @Query("SELECT * FROM messages WHERE status = 0 AND isSent = 1")
+    suspend fun getPendingMessages(): List<MessageEntity>
+
+    // Mesaj iletildiğinde statusu güncelle (PENDING -> SENT)
+    @Query("UPDATE messages SET status = 1 WHERE packetUid = :packetUid")
+    suspend fun markMessageAsSent(packetUid: String)
 }
