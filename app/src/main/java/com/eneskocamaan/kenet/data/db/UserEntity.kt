@@ -11,9 +11,9 @@ data class UserEntity(
     val phoneNumber: String,    // Telefon Numaram
     val displayName: String,    // Görünen Adım
 
-    // Şifreleme Anahtarları (IBE)
-    val privateKey: String,
-    val publicParams: String,
+    // EKLENEN ALANLAR:
+    val ibePrivateKey: String? = null, // Şifre çözmek için gerekli
+    val publicParams: String? = null,   // Public Key
 
     val bloodType: String? = null,
 

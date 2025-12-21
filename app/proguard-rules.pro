@@ -19,3 +19,13 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# JNA ve Lazysodium Kuralları
+-keep class com.sun.jna.** { *; }
+-keep class * implements com.sun.jna.Library { *; }
+-keep class com.goterl.lazysodium.** { *; }
+
+# Native kütüphane isimlerini koru
+-keepclasseswithmembernames class * {
+    native <methods>;
+}

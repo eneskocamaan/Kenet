@@ -14,12 +14,12 @@ import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.eneskocamaan.kenet.R
 import com.eneskocamaan.kenet.data.api.ApiClient
+import com.eneskocamaan.kenet.data.api.CompleteProfileRequest
 import com.eneskocamaan.kenet.data.api.ContactModel
+import com.eneskocamaan.kenet.data.api.DeleteContactRequest
 import com.eneskocamaan.kenet.data.db.AppDatabase
 import com.eneskocamaan.kenet.data.db.ContactEntity
 import com.eneskocamaan.kenet.data.db.UserEntity
-import com.eneskocamaan.kenet.data.model.remote.request.CompleteProfileRequest
-import com.eneskocamaan.kenet.data.model.remote.request.DeleteContactRequest
 import com.eneskocamaan.kenet.databinding.FragmentTrustedContactsBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -87,7 +87,11 @@ class TrustedContactsFragment : Fragment(R.layout.fragment_trusted_contacts) {
 
     private fun loadContacts(userId: String) {
         lifecycleScope.launch(Dispatchers.IO) {
+            // DAO'da "getContacts" fonksiyonu olduğundan emin olun.
+            // Eğer yoksa "getAllContactsList" veya uygun bir sorguyu kullanın.
+            // Önceki adımlarda 'getContacts' fonksiyonunu ContactDao'ya eklemiştik.
             val contacts = AppDatabase.getDatabase(requireContext()).contactDao().getContacts(userId)
+
             withContext(Dispatchers.Main) {
                 contactsAdapter.submitList(contacts)
                 binding.tvEmptyState.visibility = if (contacts.isEmpty()) View.VISIBLE else View.GONE
@@ -115,10 +119,6 @@ class TrustedContactsFragment : Fragment(R.layout.fragment_trusted_contacts) {
 
         lifecycleScope.launch {
             try {
-                // Backend'e sadece profili (eski haliyle) ve yeni kontakları gönderiyoruz.
-                // DÜZELTME: etDisplayName ve etBloodType bu ekranda yok. currentUser verilerini kullanıyoruz.
-                // DÜZELTME: Named Arguments (phoneNumber = ...) kullanılarak hata giderildi.
-
                 val request = CompleteProfileRequest(
                     phoneNumber = phone,
                     displayName = currentUser?.displayName ?: "",
@@ -128,9 +128,14 @@ class TrustedContactsFragment : Fragment(R.layout.fragment_trusted_contacts) {
                 val response = ApiClient.api.completeProfile(request)
 
                 if (response.isSuccessful) {
-                    // Local DB Insert
+                    // --- DÜZELTME BURADA YAPILDI ---
                     val entities = newContacts.map {
-                        ContactEntity(userId, it.phone_number, it.display_name, null)
+                        ContactEntity(
+                            ownerId = userId,
+                            contactPhoneNumber = it.phoneNumber, // .phoneNumber (camelCase)
+                            contactName = it.displayName,        // .displayName (camelCase)
+                            contactServerId = null
+                        )
                     }
                     withContext(Dispatchers.IO) {
                         AppDatabase.getDatabase(requireContext()).contactDao().insertContacts(entities)
@@ -155,7 +160,6 @@ class TrustedContactsFragment : Fragment(R.layout.fragment_trusted_contacts) {
 
         lifecycleScope.launch {
             try {
-                // DÜZELTME: DeleteContactRequest parametre isimlerini netleştirdik.
                 val request = DeleteContactRequest(
                     ownerPhone = ownerPhone,
                     contactPhone = contact.contactPhoneNumber

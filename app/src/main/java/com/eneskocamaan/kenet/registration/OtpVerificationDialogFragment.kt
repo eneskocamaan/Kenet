@@ -11,8 +11,7 @@ import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.setFragmentResult
 import androidx.lifecycle.lifecycleScope
 import com.eneskocamaan.kenet.data.api.ApiClient
-import com.eneskocamaan.kenet.data.model.remote.request.VerifyOtpRequest
-import com.eneskocamaan.kenet.data.model.remote.response.VerifyOtpResponse
+import com.eneskocamaan.kenet.data.api.VerifyOtpRequest
 import com.eneskocamaan.kenet.databinding.DialogOtpVerificationBinding
 import kotlinx.coroutines.launch
 

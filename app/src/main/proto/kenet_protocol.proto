@@ -5,70 +5,116 @@ package com.eneskocamaan.kenet.proto;
 option java_package = "com.eneskocamaan.kenet.proto";
 option java_multiple_files = true;
 
-// --- ANA PAKET ---
 message KenetPacket {
-    enum PacketType {
-        UNKNOWN = 0;
-        DISCOVERY = 1;
-        REPLY = 2;
-        MESSAGE = 3;
-        ACK = 4;
-    }
+  enum PacketType {
+    UNKNOWN = 0;
+    DISCOVERY = 1;
+    REPLY = 2;
+    MESSAGE = 3;
+    ACK = 4;
+    GATEWAY_SMS = 5;
+  }
 
-    PacketType type = 1;
+  PacketType type = 1;
 
-    oneof payload {
-        DiscoveryPacket discovery = 2;
-        ReplyPacket reply = 3;
-        MessagePacket message = 4;
-        AckPacket ack = 5;
-    }
+  oneof payload {
+    DiscoveryPacket discovery = 2;
+    ReplyPacket reply = 3;
+    MessagePacket message = 4;
+    AckPacket ack = 5;
+    GatewaySmsPacket gateway_sms = 6;
+  }
 }
 
-message AckPacket {
-    string packet_uid = 1;
-    string sender_id = 2;
-    string target_id = 3;
-
-    double sender_lat = 4;
-    double sender_lng = 5;
-    double target_lat = 6;
-    double target_lng = 7;
-
-    int64 timestamp = 8;
-}
-
-message DiscoveryPacket {
-    string packet_uid = 1;
-    string sender_id = 2;
-    string target_id = 3;
-    double sender_lat = 4;
-    double sender_lng = 5;
-    int32 ttl = 6;
-    int64 timestamp = 7;
-}
-
-message ReplyPacket {
-    string packet_uid = 1;
-    string sender_id = 2;
-    string target_id = 3;
-    double sender_lat = 4;
-    double sender_lng = 5;
-    double target_lat = 6;
-    double target_lng = 7;
-    int32 ttl = 8;
-    int64 timestamp = 9;
-}
-
+// --- 1. MESAJ PAKETİ (Tam Şifreli + İmzalı) ---
 message MessagePacket {
-    string packet_uid = 1;
-    string sender_id = 2;
-    string target_id = 3;
-    double sender_lat = 4;
-    double sender_lng = 5;
-    double target_lat = 6;
-    double target_lng = 7;
-    int32 ttl = 8;
-    int64 timestamp = 9;
-    string content_text = 10;
+  // AÇIK HEADER (Yönlendirme için şart) - Bütünlüğü 'tag' ile korunur
+  bytes packet_uid = 1;      // 16 Byte
+  string sender_id = 2;
+  string target_id = 3;
+  float sender_lat = 4;
+  float sender_lng = 5;
+  float target_lat = 6;
+  float target_lng = 7;
+  int32 ttl = 8;
+  int64 timestamp = 9;
+
+  // ŞİFRELİ İÇERİK
+  bytes encrypted_payload = 10;      // ChaCha20 ile şifrelenmiş metin
+  bytes ephemeral_public_key = 11;   // X25519 Geçici Anahtarı
+
+  // KRİPTOGRAFİK KORUMA (AEAD)
+  bytes nonce = 12;          // 24 Byte XChaCha20 Nonce
+  bytes integrity_tag = 13;  // Poly1305 Etiketi (Header + Payload değişirse tutmaz)
+}
+
+// --- 2. GATEWAY SMS PAKETİ (Tam Şifreli + İmzalı) ---
+message GatewaySmsPacket {
+  // AÇIK HEADER
+  bytes packet_uid = 1;
+  string sender_id = 2;
+  string target_phone = 3;   // Hedef Numara
+  int32 ttl = 4;
+
+  // ŞİFRELİ İÇERİK
+  bytes encrypted_payload = 5;       // Şifreli Mesaj
+  bytes ephemeral_public_key = 6;    // Sunucu için anahtar
+
+  // KORUMA
+  bytes nonce = 7;
+  bytes integrity_tag = 8;
+}
+
+// --- 3. KEŞİF PAKETİ (Açık ama İMZALI) ---
+// İçerik şifreli değil (herkes okumalı), ama DEĞİŞTİRİLEMEZ.
+message DiscoveryPacket {
+  // VERİLER
+  bytes packet_uid = 1;
+  string sender_id = 2;
+  string target_id = 3;      // Kimi arıyoruz?
+  float sender_lat = 4;
+  float sender_lng = 5;
+  int32 ttl = 6;
+  int64 timestamp = 7;
+
+  // KORUMA
+  // Bu paket şifreli değil ama Poly1305 ile imzalıdır.
+  // 'integrity_tag', gönderenin Private Key'i ile imzalanmış hash'tir.
+  // Alan kişi, gönderenin ID'sinden (Public Key) imzayı doğrular.
+  bytes nonce = 8;
+  bytes integrity_tag = 9;
+}
+
+// --- 4. CEVAP PAKETİ (Açık ama İMZALI) ---
+message ReplyPacket {
+  // VERİLER
+  bytes packet_uid = 1;
+  string sender_id = 2;      // Ben buradayım (Aranan kişi)
+  string target_id = 3;      // Seni arayana cevap
+  float sender_lat = 4;
+  float sender_lng = 5;
+  float target_lat = 6;
+  float target_lng = 7;
+  int32 ttl = 8;
+  int64 timestamp = 9;
+
+  // KORUMA
+  bytes nonce = 10;
+  bytes integrity_tag = 11;
+}
+
+// --- 5. ONAY PAKETİ (Açık ama İMZALI) ---
+message AckPacket {
+  // VERİLER
+  bytes packet_uid = 1;      // Hangi mesajın onayı?
+  string sender_id = 2;      // Onaylayan
+  string target_id = 3;      // Mesajı gönderen
+  float sender_lat = 4;
+  float sender_lng = 5;
+  float target_lat = 6;
+  float target_lng = 7;
+
+  // KORUMA
+  bytes nonce = 8;
+  bytes integrity_tag = 9;
 }

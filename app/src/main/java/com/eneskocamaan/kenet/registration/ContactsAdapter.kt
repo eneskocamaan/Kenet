@@ -38,11 +38,14 @@ class ContactsAdapter(
 
     inner class ContactViewHolder(private val binding: ItemContactBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(contact: ContactModel) {
-            binding.tvContactName.text = contact.display_name
-            binding.tvContactPhone.text = contact.phone_number
+            // --- DÜZELTME BURADA YAPILDI (camelCase) ---
+            binding.tvContactName.text = contact.displayName
+            binding.tvContactPhone.text = contact.phoneNumber
+            // -------------------------------------------
+
             binding.cbSelect.isChecked = contact.isSelected
 
-            // --- GÜNCELLENEN KISIM: KENET KULLANICI KONTROLÜ ---
+            // KENET KULLANICI KONTROLÜ
             if (contact.isKenetUser) {
                 // Kenet kullanıyorsa rozeti göster
                 binding.tvAppUserBadge.visibility = View.VISIBLE
@@ -58,7 +61,6 @@ class ContactsAdapter(
                     ContextCompat.getColor(binding.root.context, R.color.white)
                 )
             }
-            // ---------------------------------------------------
 
             // Satıra tıklama (Seçimi değiştir)
             binding.root.setOnClickListener {

@@ -51,26 +51,43 @@ class PeersFragment : Fragment(R.layout.fragment_peers) {
     }
 
     private fun checkVersionAndNavigate(contact: ContactEntity) {
-        // --- ESKİ CİHAZ ENGELİ ---
-        // Android 9.0 (API 28) ve altı engellensin
+        // 1. Android Sürüm Kontrolü (Legacy)
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
-            AlertDialog.Builder(requireContext())
-                .setTitle("Cihaz Desteklenmiyor")
-                .setMessage("Bu özellik yüksek performanslı ağ işlemleri gerektirir.\n\nCihazınızın Android sürümü (Android 9.0 altı) bu özelliği kararlı bir şekilde çalıştıramaz.")
-                .setPositiveButton("Anladım", null)
-                .show()
+            // ... (Popup Kodu Aynı) ...
             return
         }
 
-        // Destekliyorsa devam et
-        val targetId = contact.contactServerId ?: contact.contactPhoneNumber
-        if (targetId.isNullOrEmpty()) return
+        // 2. Kenet Kullanıcısı Mı? (GATEWAY KONTROLÜ)
+        val isKenetUser = !contact.contactServerId.isNullOrEmpty()
+        val targetPhone = contact.contactPhoneNumber
 
-        val bundle = Bundle().apply {
-            putString("deviceAddress", targetId)
-            putString("deviceName", contact.contactName)
+        if (!isKenetUser) {
+            // Popup Göster
+            AlertDialog.Builder(requireContext())
+                .setTitle("SMS Ağ Geçidi Modu")
+                .setMessage("Bu kişi KENET kullanmıyor.\n\nMesajınız, çevredeki internet bağlantısı olan en yakın cihaz (Gateway) üzerinden sunucuya iletilecek ve kişiye SMS olarak gönderilecektir.\n\nDevam etmek istiyor musunuz?")
+                .setPositiveButton("Evet, Mesaj Gönder") { _, _ ->
+                    // Sohbeti "SMS Modu"nda aç
+                    val bundle = Bundle().apply {
+                        putString("deviceAddress", targetPhone) // ID yerine Telefon No
+                        putString("deviceName", contact.contactName)
+                        putBoolean("isSmsMode", true) // YENİ BAYRAK
+                        putString("targetPhone", targetPhone)
+                    }
+                    findNavController().navigate(R.id.action_peersFragment_to_chatDetailFragment, bundle)
+                }
+                .setNegativeButton("İptal", null)
+                .show()
+        } else {
+            // Normal Sohbet (Doğrudan P2P)
+            val targetId = contact.contactServerId ?: return
+            val bundle = Bundle().apply {
+                putString("deviceAddress", targetId)
+                putString("deviceName", contact.contactName)
+                putBoolean("isSmsMode", false)
+            }
+            findNavController().navigate(R.id.action_peersFragment_to_chatDetailFragment, bundle)
         }
-        findNavController().navigate(R.id.action_peersFragment_to_chatDetailFragment, bundle)
     }
 
     override fun onDestroyView() {

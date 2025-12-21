@@ -5,7 +5,6 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.androidx.navigation.safeargs.kotlin)
     id("kotlin-parcelize")
-    // EKLENDİ: Protobuf Plugin
     id("com.google.protobuf") version "0.9.4"
 }
 
@@ -21,6 +20,14 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // NDK Filtresi: Sadece gerekli işlemci mimarilerini dahil et
+        ndk {
+            abiFilters.add("armeabi-v7a")
+            abiFilters.add("arm64-v8a")
+            abiFilters.add("x86")
+            abiFilters.add("x86_64")
+        }
     }
 
     buildTypes {
@@ -43,10 +50,11 @@ android {
         compose = true
         viewBinding = true
     }
+
+
 }
 
 dependencies {
-
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -81,8 +89,17 @@ dependencies {
     implementation("com.google.android.gms:play-services-location:21.3.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
 
-    // EKLENDİ: Protobuf Lite Kütüphanesi (Mobil için optimize edilmiş versiyon)
+    // Protobuf Lite
     implementation("com.google.protobuf:protobuf-javalite:3.24.4")
+
+    // --- ŞİFRELEME KÜTÜPHANELERİ ---
+    // JNA kütüphanesini AAR olarak ekle
+    implementation("net.java.dev.jna:jna:5.14.0@aar")
+
+    // Lazysodium (İçindeki JNA'yı hariç tutarak)
+    implementation("com.goterl:lazysodium-android:5.1.0") {
+        exclude(group = "net.java.dev.jna")
+    }
 }
 
 protobuf {

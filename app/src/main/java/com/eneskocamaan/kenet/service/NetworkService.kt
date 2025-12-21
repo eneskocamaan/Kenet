@@ -20,6 +20,7 @@ import android.os.Looper
 import android.util.Log
 import androidx.core.app.ActivityCompat
 import com.eneskocamaan.kenet.DebugLogger
+import com.eneskocamaan.kenet.PacketUtils // IMPORT ADDED
 import com.eneskocamaan.kenet.SocketManager
 import com.eneskocamaan.kenet.data.db.AppDatabase
 import com.eneskocamaan.kenet.proto.KenetPacket
@@ -48,14 +49,14 @@ class NetworkService : Service(), WifiP2pManager.PeerListListener {
 
     override fun onCreate() {
         super.onCreate()
-        DebugLogger.log("SERVICE", "🚀 NetworkService Başlatıldı.")
+        DebugLogger.log("SERVICE", "🚀 NetworkService Started.")
 
         manager = getSystemService(Context.WIFI_P2P_SERVICE) as WifiP2pManager
         channel = manager?.initialize(this, mainLooper, null)
 
         registerP2PReceiver()
 
-        // Temiz Başlangıç
+        // Clean Start
         removeGroupAndStartDiscovery()
     }
 
@@ -68,30 +69,30 @@ class NetworkService : Service(), WifiP2pManager.PeerListListener {
                 override fun onFailure(reason: Int) { startDiscovery() }
             })
         } catch (e: SecurityException) {
-            DebugLogger.log("ERROR", "RemoveGroup Yetki Hatası: ${e.message}")
+            DebugLogger.log("ERROR", "RemoveGroup Permission Error: ${e.message}")
         }
     }
 
     private fun startDiscovery() {
         if (!hasPermission()) {
-            DebugLogger.log("ERROR", "Keşif başlatılamadı: İzin Yok!")
+            DebugLogger.log("ERROR", "Discovery failed: No Permission!")
             return
         }
 
         try {
             manager?.discoverPeers(channel, object : WifiP2pManager.ActionListener {
                 override fun onSuccess() {
-                    DebugLogger.log("P2P", "✅ Keşif Modu (Discovery) Başlatıldı.")
+                    DebugLogger.log("P2P", "✅ Discovery Started.")
                 }
                 override fun onFailure(reason: Int) {
                     val errorMsg = getFailureReason(reason)
-                    DebugLogger.log("P2P", "❌ Keşif Başlatılamadı: $errorMsg. Tekrar deneniyor...")
-                    // Hata alırsak 3sn sonra tekrar dene
+                    DebugLogger.log("P2P", "❌ Discovery Failed: $errorMsg. Retrying...")
+                    // Retry after 3s
                     Handler(Looper.getMainLooper()).postDelayed({ startDiscovery() }, 3000)
                 }
             })
         } catch (e: SecurityException) {
-            DebugLogger.log("ERROR", "Discovery Yetki Hatası: ${e.message}")
+            DebugLogger.log("ERROR", "Discovery Security Error: ${e.message}")
         }
     }
 
@@ -103,41 +104,42 @@ class NetworkService : Service(), WifiP2pManager.PeerListListener {
             val myId = db.userDao().getMyUserId() ?: return@launch
             val myProfile = db.userDao().getUserProfile()
 
-            val beaconPayload = MessagePacket.newBuilder()
-                .setPacketUid(UUID.randomUUID().toString())
+            // Discovery Packet kullanıyoruz (Çünkü Beacon açık bir yayındır)
+            val uniquePacketId = UUID.randomUUID().toString()
+
+            val beaconPayload = com.eneskocamaan.kenet.proto.DiscoveryPacket.newBuilder()
+                .setPacketUid(PacketUtils.uuidToBytes(uniquePacketId))
                 .setSenderId(myId)
-                .setTargetId("BROADCAST")
-                .setSenderLat(myProfile?.latitude ?: 0.0)
-                .setSenderLng(myProfile?.longitude ?: 0.0)
-                .setTimestamp(Date().time)
-                .setContentText("B")
+                .setTargetId("BROADCAST") // Hedef Herkes
+                .setSenderLat(myProfile?.latitude?.toFloat() ?: 0.0f)
+                .setSenderLng(myProfile?.longitude?.toFloat() ?: 0.0f)
+                .setTimestamp(System.currentTimeMillis())
+                .setTtl(1) // Sadece 1 hop gitsin (komşular duysun)
                 .build()
 
             val mainPacket = KenetPacket.newBuilder()
-                .setType(KenetPacket.PacketType.MESSAGE)
-                .setMessage(beaconPayload)
+                .setType(KenetPacket.PacketType.DISCOVERY)
+                .setDiscovery(beaconPayload)
                 .build()
 
             SocketManager.write(mainPacket.toByteArray())
-            // Beacon'u loglamıyoruz, log kirliliği yapmasın diye
         }
     }
 
     override fun onPeersAvailable(peers: WifiP2pDeviceList?) {
         val deviceList = peers?.deviceList ?: emptyList()
-        // DebugLogger.log("P2P", "🔎 Çevrede ${deviceList.size} cihaz bulundu.")
 
         for (device in deviceList) {
-            // 1. Zaten Bağlıysa
+            // 1. If Already Connected
             if (device.status == WifiP2pDevice.CONNECTED) {
                 if (!SocketManager.isConnected) {
-                    DebugLogger.log("P2P", "⚡ ${device.deviceName} zaten bağlı, Soket Kuruluyor...")
+                    DebugLogger.log("P2P", "⚡ ${device.deviceName} already connected, establishing Socket...")
                     requestConnectionInfo()
                 }
                 break
             }
 
-            // 2. Bağlı Değilse -> Bağlan
+            // 2. If Available -> Connect
             if (device.status == WifiP2pDevice.AVAILABLE && !isConnecting && !SocketManager.isConnected) {
                 connectToDevice(device)
                 break
@@ -148,26 +150,26 @@ class NetworkService : Service(), WifiP2pManager.PeerListListener {
     private fun connectToDevice(device: WifiP2pDevice) {
         if (!hasPermission()) return
 
-        DebugLogger.log("P2P", "⚡ Otomatik Bağlantı: ${device.deviceName}")
+        DebugLogger.log("P2P", "⚡ Auto Connect: ${device.deviceName}")
         isConnecting = true
 
         val config = WifiP2pConfig().apply {
             deviceAddress = device.deviceAddress
-            // groupOwnerIntent = 0 // J7 için gerekirse aç
+            // groupOwnerIntent = 0 // Uncomment for J7 or legacy devices
         }
 
         try {
             manager?.connect(channel, config, object : WifiP2pManager.ActionListener {
                 override fun onSuccess() {
-                    DebugLogger.log("P2P", "✅ Bağlantı İsteği Gönderildi: ${device.deviceName}")
+                    DebugLogger.log("P2P", "✅ Connection Request Sent: ${device.deviceName}")
                 }
                 override fun onFailure(reason: Int) {
-                    DebugLogger.log("P2P", "❌ Bağlantı İsteği Başarısız: ${getFailureReason(reason)}")
+                    DebugLogger.log("P2P", "❌ Connection Request Failed: ${getFailureReason(reason)}")
                     isConnecting = false
                 }
             })
         } catch (e: SecurityException) {
-            DebugLogger.log("ERROR", "Connect Yetki Hatası: ${e.message}")
+            DebugLogger.log("ERROR", "Connect Security Error: ${e.message}")
             isConnecting = false
         }
     }
@@ -175,7 +177,7 @@ class NetworkService : Service(), WifiP2pManager.PeerListListener {
     private fun requestConnectionInfo() {
         manager?.requestConnectionInfo(channel) { info ->
             if (info.groupFormed) {
-                DebugLogger.log("P2P", "🔗 P2P Grubu Kuruldu. GO: ${info.isGroupOwner}")
+                DebugLogger.log("P2P", "🔗 P2P Group Formed. GO: ${info.isGroupOwner}")
                 if (info.isGroupOwner) {
                     SocketManager.startServer()
                     beaconHandler.post(beaconRunnable)
@@ -212,9 +214,8 @@ class NetworkService : Service(), WifiP2pManager.PeerListListener {
                             isConnecting = false
                             requestConnectionInfo()
                         } else {
-                            // Sadece kopma anında logla, sürekli değil
                             if (SocketManager.isConnected) {
-                                DebugLogger.log("P2P", "💔 Bağlantı Koptu. Yeniden aranıyor...")
+                                DebugLogger.log("P2P", "💔 Connection Lost. Restarting discovery...")
                             }
                             isConnecting = false
                             SocketManager.close()
@@ -242,16 +243,16 @@ class NetworkService : Service(), WifiP2pManager.PeerListListener {
 
     private fun getFailureReason(reason: Int): String {
         return when(reason) {
-            WifiP2pManager.P2P_UNSUPPORTED -> "P2P Desteklenmiyor"
-            WifiP2pManager.BUSY -> "Sistem Meşgul (Busy)"
-            WifiP2pManager.ERROR -> "Genel Hata"
-            else -> "Bilinmiyor ($reason)"
+            WifiP2pManager.P2P_UNSUPPORTED -> "P2P Unsupported"
+            WifiP2pManager.BUSY -> "System Busy"
+            WifiP2pManager.ERROR -> "General Error"
+            else -> "Unknown ($reason)"
         }
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        DebugLogger.log("SERVICE", "🛑 Servis Durduruluyor...")
+        DebugLogger.log("SERVICE", "🛑 Service Stopping...")
         try {
             unregisterReceiver(receiver)
             beaconHandler.removeCallbacks(beaconRunnable)
@@ -261,7 +262,7 @@ class NetworkService : Service(), WifiP2pManager.PeerListListener {
             }
             SocketManager.close()
         } catch (e: Exception) {
-            DebugLogger.log("ERROR", "Destroy Hatası: ${e.message}")
+            DebugLogger.log("ERROR", "Destroy Error: ${e.message}")
         }
     }
 

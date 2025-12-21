@@ -17,10 +17,10 @@ import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import com.eneskocamaan.kenet.R
 import com.eneskocamaan.kenet.data.api.ApiClient
+import com.eneskocamaan.kenet.data.api.CompleteProfileRequest
 import com.eneskocamaan.kenet.data.api.ContactModel
 import com.eneskocamaan.kenet.data.db.AppDatabase
 import com.eneskocamaan.kenet.data.db.ContactEntity
-import com.eneskocamaan.kenet.data.model.remote.request.CompleteProfileRequest
 import com.eneskocamaan.kenet.databinding.FragmentProfileSetupBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -80,8 +80,6 @@ class ProfileSetupFragment : Fragment(R.layout.fragment_profile_setup) {
     }
 
     private fun navigateToContactSelection() {
-        // GÜNCELLEME: R.id yerine Safe Args Directions kullanıyoruz.
-        // Bu yöntem daha güvenlidir ve 'Unresolved reference' hatasını önler.
         val action = ProfileSetupFragmentDirections.actionProfileSetupFragmentToContactSelectionFragment()
         findNavController().navigate(action)
     }
@@ -98,7 +96,7 @@ class ProfileSetupFragment : Fragment(R.layout.fragment_profile_setup) {
                 } else {
                     "Güvenilir Kişileri Seç"
                 }
-                // İkon güncellemesi (Seçildiyse tik işareti)
+                // İkon güncellemesi
                 binding.btnSelectContacts.setIconResource(
                     if (contacts.isNotEmpty()) R.drawable.ic_check_circle else R.drawable.ic_person
                 )
@@ -116,6 +114,7 @@ class ProfileSetupFragment : Fragment(R.layout.fragment_profile_setup) {
         setLoading(true)
         lifecycleScope.launch {
             try {
+                // 1. İsteği Hazırla
                 val request = CompleteProfileRequest(
                     phoneNumber = args.phoneNumber,
                     displayName = displayName,
@@ -123,25 +122,33 @@ class ProfileSetupFragment : Fragment(R.layout.fragment_profile_setup) {
                     contacts = selectedContactsList
                 )
 
+                // 2. API'ye Gönder
                 val response = ApiClient.api.completeProfile(request)
 
                 if (response.isSuccessful) {
-                    // DÜZELTME: user_id yerine userId kullanıyoruz (Modelde @SerializedName("user_id") val userId: String? olmalı)
-                    val myUserId = args.userId ?: response.body()?.userId ?: "unknown"
+                    // --- DÜZELTME BURADA YAPILDI ---
+                    // args.userId 'null' gelirse, boş bir string ("") ata.
+                    // Böylece türü 'String?' değil, 'String' olur ve hatalar gider.
+                    val myUserId = args.userId ?: ""
 
-                    saveToLocalDb(displayName, bloodType, myUserId)
+                    // 3. Veritabanına Kaydet
+                    if (myUserId.isNotEmpty()) {
+                        saveToLocalDb(displayName, bloodType, myUserId)
 
-                    Toast.makeText(context, "Kurulum Tamamlandı!", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Kurulum Tamamlandı!", Toast.LENGTH_SHORT).show()
 
-                    // GÜNCELLEME: Burada da Safe Args kullanıyoruz.
-                    // R.id.action... yerine Directions sınıfı.
-                    val action = ProfileSetupFragmentDirections.actionProfileSetupFragmentToPeersFragment()
-                    findNavController().navigate(action)
+                        // 4. Ana Ekrana Git
+                        val action = ProfileSetupFragmentDirections.actionProfileSetupFragmentToPeersFragment()
+                        findNavController().navigate(action)
+                    } else {
+                        handleApiError("Kullanıcı ID hatası: ID bulunamadı.")
+                    }
                 } else {
-                    handleApiError("Hata: ${response.errorBody()?.string()}")
+                    handleApiError("Sunucu Hatası: ${response.errorBody()?.string()}")
                 }
             } catch (e: Exception) {
                 handleApiError("Bağlantı hatası: ${e.message}")
+                e.printStackTrace()
             } finally {
                 if (isAdded) setLoading(false)
             }
@@ -160,8 +167,10 @@ class ProfileSetupFragment : Fragment(R.layout.fragment_profile_setup) {
                 val contactEntities = selectedContactsList.map { contact ->
                     ContactEntity(
                         ownerId = myUserId,
-                        contactPhoneNumber = contact.phone_number,
-                        contactName = contact.display_name,
+                        // --- DÜZELTME BURADA (camelCase) ---
+                        contactPhoneNumber = contact.phoneNumber, // .phone_number YERİNE .phoneNumber
+                        contactName = contact.displayName,       // .display_name YERİNE .displayName
+                        // -----------------------------------
                         contactServerId = null
                     )
                 }

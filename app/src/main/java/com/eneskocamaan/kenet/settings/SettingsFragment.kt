@@ -10,9 +10,10 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.eneskocamaan.kenet.R
 import com.eneskocamaan.kenet.data.api.ApiClient
+import com.eneskocamaan.kenet.data.api.CompleteProfileRequest
 import com.eneskocamaan.kenet.data.db.AppDatabase
 import com.eneskocamaan.kenet.data.db.UserEntity
-import com.eneskocamaan.kenet.data.model.remote.request.CompleteProfileRequest
+
 import com.eneskocamaan.kenet.databinding.FragmentSettingsBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch

@@ -1,44 +1,36 @@
 package com.eneskocamaan.kenet
 
-import android.util.Log
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.concurrent.CopyOnWriteArrayList
 
 object DebugLogger {
-    private val _logs = MutableLiveData<String>("")
-    val logs: LiveData<String> = _logs
-
-    private val logBuffer = StringBuilder()
-    private val dateFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+    // Thread-safe liste (Aynı anda hem yazıp hem okurken çökmemesi için)
+    private val logs = CopyOnWriteArrayList<String>()
+    private val dateFormat = SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault())
 
     fun log(tag: String, message: String) {
-        // Geliştirici Logcat'i
-        Log.d(tag, message)
-
-        // Uygulama İçi Log
         val timestamp = dateFormat.format(Date())
-        val formattedLog = "[$timestamp] $tag: $message\n"
+        val logEntry = "[$timestamp] [$tag]: $message"
 
-        synchronized(this) {
-            logBuffer.append(formattedLog)
-            _logs.postValue(logBuffer.toString())
+        // Logcat'e de yazsın (Android Studio'dan takip için)
+        android.util.Log.d("KENET_DEBUG", logEntry)
+
+        // Ekrana basmak için listeye ekle
+        logs.add(0, logEntry) // En yeniyi en başa ekle
+
+        // Hafıza şişmesin diye 500 logda sınırla
+        if (logs.size > 500) {
+            logs.removeAt(logs.size - 1)
         }
+    }
+
+    fun getLogText(): String {
+        return logs.joinToString("\n----------------\n")
     }
 
     fun clear() {
-        synchronized(this) {
-            logBuffer.clear()
-            _logs.postValue("")
-        }
-    }
-
-    // Buraya da synchronized ekledim, daha güvenli.
-    fun getLogText(): String {
-        synchronized(this) {
-            return logBuffer.toString()
-        }
+        logs.clear()
     }
 }

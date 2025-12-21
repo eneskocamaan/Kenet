@@ -32,7 +32,7 @@ class ContactSelectionFragment : Fragment(R.layout.fragment_contact_selection) {
     // Veritabanı referansı
     private val db by lazy { AppDatabase.getDatabase(requireContext()) }
 
-    // Orijinal listeyi hafızada tutuyoruz, arama yapınca filtreleyip buna döneceğiz
+    // Orijinal listeyi hafızada tutuyoruz
     private var fullContactList = listOf<ContactModel>()
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -40,13 +40,11 @@ class ContactSelectionFragment : Fragment(R.layout.fragment_contact_selection) {
         _binding = FragmentContactSelectionBinding.bind(view)
 
         setupRecyclerView()
-        setupSearch() // Arama dinleyicisi
+        setupSearch()
 
-        // Rehberi Yükle, DB ile eşleştir ve Sunucuyla Kontrol Et
         loadAndCheckContacts()
 
         binding.btnConfirmSelection.setOnClickListener {
-            // Sadece görünür olanlar değil, ana listedeki seçili olanları al
             val selectedContacts = fullContactList.filter { it.isSelected }
             setFragmentResult("requestKey_contacts", bundleOf("selected_contacts" to ArrayList(selectedContacts)))
             findNavController().popBackStack()
@@ -54,9 +52,8 @@ class ContactSelectionFragment : Fragment(R.layout.fragment_contact_selection) {
     }
 
     private fun setupRecyclerView() {
-        adapter = ContactsAdapter { count ->
-            // Arama yaparken liste küçüldüğü için, toplam seçili sayısını
-            // ana liste üzerinden hesaplamak daha doğru olur.
+        adapter = ContactsAdapter {
+            // Lambda tetiklendiğinde (seçim değiştiğinde) buton metnini güncelle
             val totalSelected = fullContactList.count { it.isSelected }
             binding.btnConfirmSelection.text = "Seçimi Onayla ($totalSelected)"
         }
@@ -64,15 +61,12 @@ class ContactSelectionFragment : Fragment(R.layout.fragment_contact_selection) {
         binding.rvContacts.adapter = adapter
     }
 
-    // --- 1. ARAMA MANTIĞI ---
     private fun setupSearch() {
         binding.etSearch.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                 filterList(s.toString())
             }
-
             override fun afterTextChanged(s: Editable?) {}
         })
     }
@@ -84,9 +78,9 @@ class ContactSelectionFragment : Fragment(R.layout.fragment_contact_selection) {
             adapter.submitList(fullContactList)
         } else {
             val filteredList = fullContactList.filter { contact ->
-                // İsimde VEYA numarada ara
-                contact.display_name.lowercase().contains(lowerQuery) ||
-                        contact.phone_number.contains(lowerQuery)
+                // DÜZELTME: displayName ve phoneNumber (camelCase) kullanıldı
+                contact.displayName.lowercase().contains(lowerQuery) ||
+                        contact.phoneNumber.contains(lowerQuery)
             }
             adapter.submitList(filteredList)
         }
@@ -97,9 +91,9 @@ class ContactSelectionFragment : Fragment(R.layout.fragment_contact_selection) {
         binding.pbLoading.visibility = View.VISIBLE
 
         lifecycleScope.launch(Dispatchers.IO) {
-            // A. Veritabanındaki (zaten ekli) kişileri çek
-            val existingContacts = db.contactDao().getAllContactsList() // Dao'ya bu metodu eklemen gerekebilir (List dönecek)
-            val existingNumbers = existingContacts.map { it.contactPhoneNumber } // Sadece numaraları al
+            // A. Veritabanındaki kişileri çek (ContactDao'ya eklediğimiz fonksiyon)
+            val existingContacts = db.contactDao().getAllContactsList()
+            val existingNumbers = existingContacts.map { it.contactPhoneNumber }
 
             // B. Yerel Rehberi Çek
             val localContacts = getLocalContacts()
@@ -112,58 +106,56 @@ class ContactSelectionFragment : Fragment(R.layout.fragment_contact_selection) {
                 return@launch
             }
 
-            // --- 2. ZATEN EKLİ OLANLARI İŞARETLE (TIK KOY) ---
+            // --- 2. ZATEN EKLİ OLANLARI İŞARETLE ---
             localContacts.forEach { contact ->
-                if (existingNumbers.contains(contact.phone_number)) {
+                // DÜZELTME: phoneNumber kullanıldı
+                if (existingNumbers.contains(contact.phoneNumber)) {
                     contact.isSelected = true
                 }
             }
 
             try {
-                // C. Backend Kontrolü (Kenet Kullanıcısı mı?)
-                val phoneNumbersToSend = localContacts.map { it.phone_number }
+                // C. Backend Kontrolü
+                // DÜZELTME: phoneNumber kullanıldı
+                val phoneNumbersToSend = localContacts.map { it.phoneNumber }
                 val request = CheckContactsRequest(phoneNumbersToSend)
                 val response = ApiClient.api.checkContacts(request)
 
                 if (response.isSuccessful && response.body() != null) {
-                    val registeredNumbers = response.body()!!.registeredNumbers
+                    // DÜZELTME: registeredNumbers artık yok, registeredUsers var.
+                    // Backend'den gelen kullanıcı listesinden numaraları çekiyoruz.
+                    val registeredList = response.body()!!.registeredUsers
+                    val registeredNumbers = registeredList.map { it.phoneNumber }
 
-                    // Kenet kullananları işaretle
                     localContacts.forEach { contact ->
-                        if (registeredNumbers.contains(contact.phone_number)) {
+                        if (registeredNumbers.contains(contact.phoneNumber)) {
                             contact.isKenetUser = true
                         }
                     }
                 }
             } catch (e: Exception) {
-                // Hata olursa devam et (Sadece Kenet rozeti gözükmez)
+                e.printStackTrace()
             }
 
-            // D. Listeyi Sırala:
-            // 1. Kenet Kullanıcıları -> 2. Alfabetik
+            // D. Listeyi Sırala
             val sortedList = localContacts.sortedWith(
                 compareByDescending<ContactModel> { it.isKenetUser }
-                    .thenBy { it.display_name }
+                    .thenBy { it.displayName } // DÜZELTME: displayName
             )
 
-            // Ana listeyi güncelle
             fullContactList = sortedList
 
             withContext(Dispatchers.Main) {
                 if (_binding != null) {
                     adapter.submitList(fullContactList)
-
-                    // Başlangıçta seçili sayısını butona yaz
                     val count = fullContactList.count { it.isSelected }
                     binding.btnConfirmSelection.text = "Seçimi Onayla ($count)"
-
                     binding.pbLoading.visibility = View.GONE
                 }
             }
         }
     }
 
-    // ... (sanitizePhoneNumber ve getLocalContacts metodları aynen kalacak) ...
     private fun sanitizePhoneNumber(phone: String): String {
         var p = phone.replace("[^0-9]".toRegex(), "")
         if (p.startsWith("90") && p.length > 10) p = p.substring(2)
@@ -187,8 +179,9 @@ class ContactSelectionFragment : Fragment(R.layout.fragment_contact_selection) {
 
                 if (!name.isNullOrEmpty() && !rawPhone.isNullOrEmpty()) {
                     val cleanPhone = sanitizePhoneNumber(rawPhone)
-                    if (cleanPhone.length >= 10 && !contactList.any { c -> c.phone_number == cleanPhone }) {
-                        contactList.add(ContactModel(phone_number = cleanPhone, display_name = name))
+                    // DÜZELTME: Constructor parametre isimleri güncellendi (phoneNumber, displayName)
+                    if (cleanPhone.length >= 10 && !contactList.any { c -> c.phoneNumber == cleanPhone }) {
+                        contactList.add(ContactModel(phoneNumber = cleanPhone, displayName = name))
                     }
                 }
             }

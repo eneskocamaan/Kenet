@@ -9,10 +9,11 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.eneskocamaan.kenet.R
 import com.eneskocamaan.kenet.data.api.ApiClient
+import com.eneskocamaan.kenet.data.api.RequestOtpRequest
+// [DÜZELTME] Doğru import kullanıldı
+import com.eneskocamaan.kenet.data.api.VerifyOtpResponse
 import com.eneskocamaan.kenet.data.db.AppDatabase
 import com.eneskocamaan.kenet.data.db.UserEntity
-import com.eneskocamaan.kenet.data.model.remote.request.RequestOtpRequest
-import com.eneskocamaan.kenet.data.model.remote.response.VerifyOtpResponse
 import com.eneskocamaan.kenet.databinding.FragmentLoginBinding
 import com.eneskocamaan.kenet.service.NetworkService
 import kotlinx.coroutines.Dispatchers
@@ -26,8 +27,16 @@ class LoginFragment : Fragment(R.layout.fragment_login) {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // DialogFragment'tan gelen sonucu dinle
         childFragmentManager.setFragmentResultListener(OtpVerificationDialogFragment.REQUEST_KEY, this) { _, bundle ->
-            val response = bundle.getParcelable<VerifyOtpResponse>(OtpVerificationDialogFragment.RESPONSE_KEY)
+
+            val response: VerifyOtpResponse? = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                bundle.getParcelable(OtpVerificationDialogFragment.RESPONSE_KEY, VerifyOtpResponse::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                bundle.getParcelable(OtpVerificationDialogFragment.RESPONSE_KEY)
+            }
+
             if (response != null) {
                 handleVerificationResponse(response)
             }
@@ -39,7 +48,7 @@ class LoginFragment : Fragment(R.layout.fragment_login) {
         _binding = FragmentLoginBinding.bind(view)
 
         binding.btnSendCode.setOnClickListener {
-            val phoneNumber = binding.etPhoneNumber.text.toString()
+            val phoneNumber = binding.etPhoneNumber.text.toString().trim()
             if (isValidPhoneNumber(phoneNumber)) {
                 requestOtp(phoneNumber)
             } else {
@@ -49,6 +58,7 @@ class LoginFragment : Fragment(R.layout.fragment_login) {
     }
 
     private fun isValidPhoneNumber(phoneNumber: String): Boolean {
+        // Basit validasyon: 10 haneli olmalı
         return phoneNumber.length == 10 && phoneNumber.all { it.isDigit() }
     }
 
@@ -59,52 +69,68 @@ class LoginFragment : Fragment(R.layout.fragment_login) {
                 val response = ApiClient.api.requestOtp(RequestOtpRequest(phoneNumber))
                 if (response.isSuccessful) {
                     setLoading(false)
-                    Toast.makeText(context, response.body()?.message, Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, response.body()?.message ?: "Kod gönderildi", Toast.LENGTH_SHORT).show()
+
+                    // DialogFragment'ı aç
                     OtpVerificationDialogFragment.newInstance(phoneNumber)
                         .show(childFragmentManager, OtpVerificationDialogFragment.TAG)
                 } else {
-                    handleApiError("OTP isteği başarısız oldu: ${response.errorBody()?.string()}")
+                    handleApiError("OTP isteği başarısız: ${response.code()}")
                 }
             } catch (e: Exception) {
-                handleApiError(e.message)
+                handleApiError("Bağlantı hatası: ${e.message}")
+            } finally {
+                // Hata durumunda loading'i kapat
+                if (_binding != null && binding.btnSendCode.isEnabled.not()) {
+                    // setLoading(false) gerekebilir ama zaten handleApiError içinde var
+                }
             }
         }
     }
 
     private fun handleVerificationResponse(response: VerifyOtpResponse) {
         lifecycleScope.launch {
+            // Null Safety: Gelen veriler null olsa bile varsayılan değerlerle kaydet
             saveUserToLocalDb(response)
 
-            if (response.isNewUser) {
-                // Yeni Kullanıcı Profil Ekranına
-                val action = LoginFragmentDirections.actionLoginFragmentToProfileSetupFragment(response.phoneNumber, response.userId)
+            // isNewUser null gelebilir, false varsayalım
+            if (response.isNewUser == true) {
+                // YENİ KULLANICI -> Profil Kurulumuna Git
+                val phone = response.phoneNumber ?: ""
+                val uid = response.userId ?: ""
+
+                val action = LoginFragmentDirections.actionLoginFragmentToProfileSetupFragment(phone, uid)
                 findNavController().navigate(action)
             } else {
-                // MEVCUT KULLANICI -> SERVİSİ BAŞLAT ve DEVAM ET
+                // MEVCUT KULLANICI -> Ana Ekrana Git
                 startNetworkService()
-
-                Toast.makeText(context, "Tekrar hoş geldin, ${response.displayName}!", Toast.LENGTH_LONG).show()
+                val name = response.displayName ?: "Kullanıcı"
+                Toast.makeText(context, "Tekrar hoş geldin, $name!", Toast.LENGTH_LONG).show()
                 findNavController().navigate(R.id.action_loginFragment_to_peersFragment)
             }
         }
     }
 
-    // --- YENİ EKLENEN: Servis Başlatma ---
     private fun startNetworkService() {
-        val intent = Intent(requireContext(), NetworkService::class.java)
-        requireContext().startService(intent)
+        try {
+            val intent = Intent(requireContext(), NetworkService::class.java)
+            requireContext().startService(intent)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     private suspend fun saveUserToLocalDb(response: VerifyOtpResponse) {
         withContext(Dispatchers.IO) {
             val db = AppDatabase.getDatabase(requireContext())
+            // Response'dan gelen null değerleri güvenli hale getiriyoruz
             val user = UserEntity(
-                userId = response.userId,
-                phoneNumber = response.phoneNumber,
+                userId = response.userId ?: "unknown_id",
+                phoneNumber = response.phoneNumber ?: "0000000000",
                 displayName = response.displayName ?: "",
                 bloodType = response.bloodType,
-                privateKey = response.ibePrivateKey,
-                publicParams = response.publicParams
+                ibePrivateKey = response.ibePrivateKey ?: "",
+                publicParams = response.publicParams ?: ""
             )
             db.userDao().insertUser(user)
         }
@@ -112,7 +138,7 @@ class LoginFragment : Fragment(R.layout.fragment_login) {
 
     private fun handleApiError(message: String?) {
         setLoading(false)
-        Toast.makeText(context, "Bir hata oluştu: ${message ?: "Bilinmeyen hata"}", Toast.LENGTH_LONG).show()
+        Toast.makeText(context, message ?: "Bilinmeyen hata", Toast.LENGTH_LONG).show()
     }
 
     private fun setLoading(isLoading: Boolean) {

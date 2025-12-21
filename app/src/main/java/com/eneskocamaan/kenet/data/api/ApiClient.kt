@@ -1,31 +1,34 @@
 package com.eneskocamaan.kenet.data.api
 
+import com.google.gson.GsonBuilder
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 
 object ApiClient {
-
-    // Sunucu Adresi
+    // Emulator için 10.0.2.2, Gerçek cihaz için Bilgisayarın IP adresi (örn: 192.168.1.35)
     private const val BASE_URL = "http://92.249.61.192:8000/"
 
-    val api: KenetApi by lazy {
-        val clientBuilder = OkHttpClient.Builder()
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .writeTimeout(30, TimeUnit.SECONDS)
-            .retryOnConnectionFailure(true)
+    private val gson = GsonBuilder()
+        .setLenient() // Hatalı JSON formatlarına karşı esneklik sağlar
+        .create()
 
-        // Eski SSL/TLS kodları SİLİNDİ.
-        // Android 8.0+ varsayılan ayarlar yeterlidir.
+    // --- LOGLAMA İÇİN CLIENT ---
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .build()
 
-        val retrofit = Retrofit.Builder()
+    private val retrofit: Retrofit by lazy {
+        Retrofit.Builder()
             .baseUrl(BASE_URL)
-            .addConverterFactory(GsonConverterFactory.create())
-            .client(clientBuilder.build())
+            .client(client)
+            .addConverterFactory(GsonConverterFactory.create(gson))
             .build()
+    }
 
+    val api: KenetApi by lazy {
         retrofit.create(KenetApi::class.java)
     }
 }

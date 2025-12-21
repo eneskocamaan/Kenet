@@ -2,6 +2,7 @@ package com.eneskocamaan.kenet.data.db
 
 import androidx.room.Entity
 import androidx.room.ForeignKey
+import androidx.room.Index
 
 @Entity(
     tableName = "contacts",
@@ -13,16 +14,20 @@ import androidx.room.ForeignKey
             childColumns = ["ownerId"],
             onDelete = ForeignKey.CASCADE
         )
-    ]
+    ],
+    indices = [Index(value = ["contactServerId"])]
 )
 data class ContactEntity(
-    val ownerId: String,            // Bu rehber kime ait? (Benim ID'm)
-    val contactPhoneNumber: String, // Kişinin Numarası
-    val contactName: String,        // Kişinin Adı
+    val ownerId: String,
+    val contactPhoneNumber: String,
+    val contactName: String,
 
-    val contactServerId: String? = null, // Kenet ID'si (Varsa)
+    val contactServerId: String? = null,
+    val contactDisplayName: String? = null,
+    val ibePublicKey: String? = null,
+    val bloodType: String? = null, // YENİ EKLENEN
 
-    // Kişinin son bilinen konumu (Mesaj gönderirken hedef olarak kullanılır)
     val contactLatitude: Double? = null,
-    val contactLongitude: Double? = null
+    val contactLongitude: Double? = null,
+    val lastSeenTimestamp: Long? = null
 )
