@@ -1,11 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-        <color name="black">#FF000000</color>
-        <color name="white">#FFFFFFFF</color>
-        <color name="primary_color">#2196F3</color> <color name="primary_dark">#1976D2</color>
-        <color name="accent_color">#00E5FF</color> <color name="background_dark">#121212</color> <color name="card_background">#1E1E1E</color> <color name="text_secondary">#B0BEC5</color>
-        <color name="status_online">#4CAF50</color>
-        <color name="background_light">#F5F5F5</color>
-        <color name="text_gray">#888888</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+
+    <color name="primary_color">#2196F3</color>
+    <color name="primary_dark">#1976D2</color>
+    <color name="accent_color">#00E5FF</color>
+
+    <color name="background_dark">#121212</color>
+    <color name="card_background">#1E1E1E</color>
+    <color name="background_light">#F5F5F5</color>
+
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#B0BEC5</color>
+    <color name="text_gray">#888888</color>
+
+    <color name="status_online">#4CAF50</color>
+
+    <color name="sos_red">#D32F2F</color>
+    <color name="sos_red_glow">#FF5252</color>
+    <color name="grid_line">#1AFFFFFF</color>
+
+    <color name="transparent">#00000000</color>
+    <color name="warning_orange">#FFAB00</color>
 
 </resources>

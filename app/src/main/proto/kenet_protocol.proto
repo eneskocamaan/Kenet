@@ -29,7 +29,7 @@ message KenetPacket {
 // --- 1. MESAJ PAKETİ (Tam Şifreli + İmzalı) ---
 message MessagePacket {
   // AÇIK HEADER (Yönlendirme için şart) - Bütünlüğü 'tag' ile korunur
-  bytes packet_uid = 1;      // 16 Byte
+  bytes packet_uid = 1;
   string sender_id = 2;
   string target_id = 3;
   float sender_lat = 4;
@@ -40,12 +40,12 @@ message MessagePacket {
   int64 timestamp = 9;
 
   // ŞİFRELİ İÇERİK
-  bytes encrypted_payload = 10;      // ChaCha20 ile şifrelenmiş metin
-  bytes ephemeral_public_key = 11;   // X25519 Geçici Anahtarı
+  bytes encrypted_payload = 10;
+  bytes ephemeral_public_key = 11;
 
   // KRİPTOGRAFİK KORUMA (AEAD)
-  bytes nonce = 12;          // 24 Byte XChaCha20 Nonce
-  bytes integrity_tag = 13;  // Poly1305 Etiketi (Header + Payload değişirse tutmaz)
+  bytes nonce = 12;
+  bytes integrity_tag = 13;
 }
 
 // --- 2. GATEWAY SMS PAKETİ (Tam Şifreli + İmzalı) ---
@@ -53,12 +53,12 @@ message GatewaySmsPacket {
   // AÇIK HEADER
   bytes packet_uid = 1;
   string sender_id = 2;
-  string target_phone = 3;   // Hedef Numara
+  string target_phone = 3;
   int32 ttl = 4;
 
   // ŞİFRELİ İÇERİK
-  bytes encrypted_payload = 5;       // Şifreli Mesaj
-  bytes ephemeral_public_key = 6;    // Sunucu için anahtar
+  bytes encrypted_payload = 5;
+  bytes ephemeral_public_key = 6;
 
   // KORUMA
   bytes nonce = 7;
@@ -71,7 +71,7 @@ message DiscoveryPacket {
   // VERİLER
   bytes packet_uid = 1;
   string sender_id = 2;
-  string target_id = 3;      // Kimi arıyoruz?
+  string target_id = 3;
   float sender_lat = 4;
   float sender_lng = 5;
   int32 ttl = 6;
@@ -89,8 +89,8 @@ message DiscoveryPacket {
 message ReplyPacket {
   // VERİLER
   bytes packet_uid = 1;
-  string sender_id = 2;      // Ben buradayım (Aranan kişi)
-  string target_id = 3;      // Seni arayana cevap
+  string sender_id = 2;
+  string target_id = 3;
   float sender_lat = 4;
   float sender_lng = 5;
   float target_lat = 6;
@@ -106,9 +106,9 @@ message ReplyPacket {
 // --- 5. ONAY PAKETİ (Açık ama İMZALI) ---
 message AckPacket {
   // VERİLER
-  bytes packet_uid = 1;      // Hangi mesajın onayı?
-  string sender_id = 2;      // Onaylayan
-  string target_id = 3;      // Mesajı gönderen
+  bytes packet_uid = 1;
+  string sender_id = 2;
+  string target_id = 3;
   float sender_lat = 4;
   float sender_lng = 5;
   float target_lat = 6;

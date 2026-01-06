@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Dış Halka (Yarı saydam) -->
+    <item>
+        <shape android:shape="oval">
+            <solid android:color="#40FF453A" /> <!-- #40 = %25 alpha -->
+            <size
+                android:width="24dp"
+                android:height="24dp" />
+        </shape>
+    </item>
+
+    <!-- İç Daire (Dolu) -->
+    <item
+        android:bottom="8dp"
+        android:left="8dp"
+        android:right="8dp"
+        android:top="8dp">
+        <shape android:shape="oval">
+            <solid android:color="#FF453A" />
+        </shape>
+    </item>
+
+</layer-list>

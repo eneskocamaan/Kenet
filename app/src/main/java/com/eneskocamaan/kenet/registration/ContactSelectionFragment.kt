@@ -78,7 +78,6 @@ class ContactSelectionFragment : Fragment(R.layout.fragment_contact_selection) {
             adapter.submitList(fullContactList)
         } else {
             val filteredList = fullContactList.filter { contact ->
-                // DÜZELTME: displayName ve phoneNumber (camelCase) kullanıldı
                 contact.displayName.lowercase().contains(lowerQuery) ||
                         contact.phoneNumber.contains(lowerQuery)
             }
@@ -91,9 +90,21 @@ class ContactSelectionFragment : Fragment(R.layout.fragment_contact_selection) {
         binding.pbLoading.visibility = View.VISIBLE
 
         lifecycleScope.launch(Dispatchers.IO) {
-            // A. Veritabanındaki kişileri çek (ContactDao'ya eklediğimiz fonksiyon)
-            val existingContacts = db.contactDao().getAllContactsList()
-            val existingNumbers = existingContacts.map { it.contactPhoneNumber }
+            // 1. Önce giriş yapan kullanıcının ID'sini alıyoruz
+            val myUserId = db.userDao().getMyUserId()
+
+            // Eğer kullanıcı girişi yoksa işlem yapma
+            if (myUserId == null) {
+                withContext(Dispatchers.Main) {
+                    binding.pbLoading.visibility = View.GONE
+                    Toast.makeText(context, "Kullanıcı oturumu bulunamadı.", Toast.LENGTH_SHORT).show()
+                }
+                return@launch
+            }
+
+            // 2. DÜZELTME: Doğrudan o kullanıcının ekli numaralarını çekiyoruz (List<String>)
+            // getAllContactsList() yerine getAllPhoneNumbers() kullanıyoruz.
+            val existingNumbers = db.contactDao().getAllPhoneNumbers(myUserId)
 
             // B. Yerel Rehberi Çek
             val localContacts = getLocalContacts()
@@ -106,24 +117,20 @@ class ContactSelectionFragment : Fragment(R.layout.fragment_contact_selection) {
                 return@launch
             }
 
-            // --- 2. ZATEN EKLİ OLANLARI İŞARETLE ---
+            // --- 3. ZATEN EKLİ OLANLARI İŞARETLE ---
             localContacts.forEach { contact ->
-                // DÜZELTME: phoneNumber kullanıldı
                 if (existingNumbers.contains(contact.phoneNumber)) {
                     contact.isSelected = true
                 }
             }
 
             try {
-                // C. Backend Kontrolü
-                // DÜZELTME: phoneNumber kullanıldı
+                // C. Backend Kontrolü (Kenet Kullanıcısı mı?)
                 val phoneNumbersToSend = localContacts.map { it.phoneNumber }
                 val request = CheckContactsRequest(phoneNumbersToSend)
                 val response = ApiClient.api.checkContacts(request)
 
                 if (response.isSuccessful && response.body() != null) {
-                    // DÜZELTME: registeredNumbers artık yok, registeredUsers var.
-                    // Backend'den gelen kullanıcı listesinden numaraları çekiyoruz.
                     val registeredList = response.body()!!.registeredUsers
                     val registeredNumbers = registeredList.map { it.phoneNumber }
 
@@ -140,7 +147,7 @@ class ContactSelectionFragment : Fragment(R.layout.fragment_contact_selection) {
             // D. Listeyi Sırala
             val sortedList = localContacts.sortedWith(
                 compareByDescending<ContactModel> { it.isKenetUser }
-                    .thenBy { it.displayName } // DÜZELTME: displayName
+                    .thenBy { it.displayName }
             )
 
             fullContactList = sortedList
@@ -179,7 +186,6 @@ class ContactSelectionFragment : Fragment(R.layout.fragment_contact_selection) {
 
                 if (!name.isNullOrEmpty() && !rawPhone.isNullOrEmpty()) {
                     val cleanPhone = sanitizePhoneNumber(rawPhone)
-                    // DÜZELTME: Constructor parametre isimleri güncellendi (phoneNumber, displayName)
                     if (cleanPhone.length >= 10 && !contactList.any { c -> c.phoneNumber == cleanPhone }) {
                         contactList.add(ContactModel(phoneNumber = cleanPhone, displayName = name))
                     }

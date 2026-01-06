@@ -1,7 +1,8 @@
 from pydantic import BaseModel
 from typing import Optional, List
+from datetime import datetime
 
-# --- Yardımcı Modeller ---
+# --- Temel Modeller ---
 class ContactModel(BaseModel):
     phone_number: str
     display_name: str
@@ -35,7 +36,6 @@ class DeleteContactRequest(BaseModel):
     owner_phone: str
     contact_phone: str
 
-# --- [GÜVENLİ] GATEWAY SMS MODELİ ---
 class GatewaySmsRequest(BaseModel):
     packet_uid: str
     sender_id: str
@@ -46,36 +46,39 @@ class GatewaySmsRequest(BaseModel):
     ephemeral_key: str
     integrity_tag: str
 
-# models.py dosyası
+# --- DEPREM SİNYAL İSTEĞİ ---
+class SeismicSignalRequest(BaseModel):
+    user_id: str
+    pga: float
+    latitude: float
+    longitude: float
+
+# --- Yanıt (Response) Modelleri ---
+class StatusResponse(BaseModel):
+    message: str
+    user_id: Optional[str] = None
 
 class VerifyOtpResponse(BaseModel):
-    is_new_user: bool           # True/False
-    user_id: str                # String olması zorunlu
-    phone_number: str           # String olması zorunlu
+    is_new_user: bool
+    user_id: str
+    phone_number: str
     display_name: Optional[str] = None
     blood_type: Optional[str] = None
     ibe_private_key: Optional[str] = None
     public_params: Optional[str] = None
 
-class StatusResponse(BaseModel):
-    message: str
-    user_id: Optional[str] = None
-
-# [GÜNCELLENDİ] Tüm detayları içeren model
 class RegisteredUserItem(BaseModel):
     user_id: str
     phone_number: str
     display_name: Optional[str] = ""
     blood_type: Optional[str] = None
-    public_key: Optional[str] = None  # public_params
+    public_key: Optional[str] = None
     latitude: Optional[float] = 0.0
     longitude: Optional[float] = 0.0
 
 class CheckContactsResponse(BaseModel):
     registered_users: List[RegisteredUserItem]
 
-# [GÜNCELLENDİ] SyncContactsResponse için de aynı yapıyı kullanabiliriz aslında ama
-# mevcut yapıyı bozmamak için SyncContactItem'ı tutuyoruz.
 class SyncContactItem(BaseModel):
     contact_id: Optional[str]
     phone_number: str
@@ -86,3 +89,40 @@ class SyncContactItem(BaseModel):
 
 class SyncContactsResponse(BaseModel):
     contacts: List[SyncContactItem]
+
+# --- DEPREM LİSTELEME MODELLERİ ---
+
+# 1. Sekme İçin (Kenet Algılaması)
+class AppDetectedEventItem(BaseModel):
+    id: int
+    latitude: float
+    longitude: float
+    intensity_label: str
+    max_pga: float
+    participating_users: int
+    created_at: datetime
+
+# 2. Sekme İçin (Resmi Veriler)
+class ConfirmedEarthquakeItem(BaseModel):
+    id: int
+    centroid_latitude: float
+    centroid_longitude: float
+    intensity_label: str
+    radius_km: int
+    occurred_at: datetime
+
+class EarthquakeListResponse(BaseModel):
+    earthquakes: List[ConfirmedEarthquakeItem]
+
+class ConfirmedEarthquakeItem(BaseModel):
+    id: int
+    external_id: str
+    title: str
+    magnitude: float
+    depth: float
+    latitude: float
+    longitude: float
+    occurred_at: datetime
+
+class EarthquakeListResponse(BaseModel):
+    earthquakes: List[ConfirmedEarthquakeItem]

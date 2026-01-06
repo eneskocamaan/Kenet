@@ -34,4 +34,8 @@ interface UserDao {
      */
     @Query("UPDATE user_profile SET displayName = :displayName, bloodType = :bloodType WHERE phoneNumber = :phoneNumber")
     suspend fun updateUserProfile(phoneNumber: String, displayName: String, bloodType: String?)
+
+    // UserDao.kt içine ekle:
+    @Query("UPDATE user_profile SET latitude = :lat, longitude = :lng WHERE userId = (SELECT userId FROM user_profile LIMIT 1)")
+    suspend fun updateUserLocation(lat: Double, lng: Double)
 }

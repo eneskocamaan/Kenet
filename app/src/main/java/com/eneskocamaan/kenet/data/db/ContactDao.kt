@@ -14,10 +14,9 @@ interface ContactDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertContact(contact: ContactEntity)
 
-    // --- İŞTE EKSİK OLAN VE HATAYI ÇÖZEN FONKSİYON ---
+    // Belirli bir kullanıcının rehberini getirir
     @Query("SELECT * FROM contacts WHERE ownerId = :ownerId")
     suspend fun getContacts(ownerId: String): List<ContactEntity>
-    // --------------------------------------------------
 
     @Query("SELECT contactPhoneNumber FROM contacts WHERE ownerId = :ownerId")
     suspend fun getAllPhoneNumbers(ownerId: String): List<String>
@@ -25,13 +24,9 @@ interface ContactDao {
     @Query("SELECT * FROM contacts WHERE ownerId = :ownerId AND contactPhoneNumber = :phone")
     suspend fun getContactByPhone(ownerId: String, phone: String): ContactEntity?
 
-    @Query("SELECT * FROM contacts")
-    fun getAllContacts(): Flow<List<ContactEntity>>
-
-    @Query("SELECT * FROM contacts")
-    fun getAllContactsList(): List<ContactEntity>
-
-    // Bildirim sayıları için (PeersFragment kullanıyor)
+    // --- KRİTİK DÜZELTME BURADA ---
+    // 1. ownerId filtresi eklendi (Sadece benim rehberim gelsin).
+    // 2. Okunmamış mesaj sayısı hesaplaması aynı kaldı (Mantığı doğru).
     @Query("""
         SELECT c.*, 
         (
@@ -41,9 +36,12 @@ interface ContactDao {
             AND m.isSent = 0
         ) as unreadCount 
         FROM contacts c
+        WHERE c.ownerId = :ownerId 
     """)
-    fun getContactsWithUnreadCounts(): Flow<List<ContactWithUnreadCount>>
+    fun getContactsWithUnreadCounts(ownerId: String): Flow<List<ContactWithUnreadCount>>
+    // -----------------------------
 
+    // Tekil kişi çekme (ID veya Telefon ile)
     @Query("SELECT * FROM contacts WHERE contactServerId = :id OR contactPhoneNumber = :id LIMIT 1")
     fun getContactByIdFlow(id: String): Flow<ContactEntity?>
 

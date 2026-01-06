@@ -106,11 +106,14 @@ class SplashFragment : Fragment(R.layout.fragment_splash) {
             val currentUser = getCurrentUser()
 
             if (currentUser != null) {
-                if (isInternetAvailable(requireContext())) {
-                    if (hasPermission) updateMyLocation(currentUser)
+                if (hasPermission) {
+                    updateMyLocation(currentUser)
+                }
 
-                    // [ÖNEMLİ] Hibrit Senkronizasyon Başlatılıyor
+                if (isInternetAvailable(requireContext())) {
                     fullSyncContactDetails(currentUser.userId)
+                } else {
+                    Log.w("KENET", "İnternet yok, yerel veritabanı kullanılacak.")
                 }
             }
 

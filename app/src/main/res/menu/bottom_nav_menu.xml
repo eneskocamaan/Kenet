@@ -12,8 +12,12 @@
         android:title="Acil Durum" />
 
     <item
+        android:id="@+id/nav_earthquake"
+        android:icon="@drawable/ic_signal"
+        android:title="Deprem Ağı" />
+
+    <item
         android:id="@+id/settingsFragment"
         android:icon="@drawable/ic_settings"
         android:title="Ayarlar" />
-
 </menu>

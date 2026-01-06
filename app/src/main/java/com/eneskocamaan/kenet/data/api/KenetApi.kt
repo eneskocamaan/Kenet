@@ -2,6 +2,7 @@ package com.eneskocamaan.kenet.data.api
 
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.GET
 import retrofit2.http.POST
 
 interface KenetApi {
@@ -32,4 +33,19 @@ interface KenetApi {
     // Endpoint ismi app.py ile aynı (/send_gateway_sms) - DOĞRU
     @POST("send_gateway_sms")
     suspend fun sendGatewaySms(@Body request: GatewaySmsRequest): Response<StatusResponse>
+
+    // 1. Sinyal Gönder (Telefon Sallanınca)
+    @POST("signal")
+    suspend fun sendSeismicSignal(@Body request: SeismicSignalRequest): Response<StatusResponse>
+
+    // 2. Kenet Algılamalarını Çek (1. Sekme Polling)
+    @GET("app_detected_events")
+    suspend fun getAppDetectedEvents(): Response<List<AppDetectedEventResponse>>
+
+    @GET("confirmed_earthquakes")
+    suspend fun getConfirmedEarthquakes(): Response<EarthquakeListResponse>
+
+
+
+
 }

@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package com.eneskocamaan.kenet.proto;
+
+option java_package = "com.eneskocamaan.kenet.proto";
+option java_multiple_files = true;
+
+message EmergencyBeacon {
+    // Kan Grupları (1 Byte yer kaplar)
+    enum BloodType {
+        UNKNOWN = 0; // Bilinmiyor (strings.xml'deki son eleman ama proto'da 0 olmak zorunda)
+        A_POS = 1;   // A Rh+
+        A_NEG = 2;   // A Rh-
+        B_POS = 3;   // B Rh+
+        B_NEG = 4;   // B Rh-
+        AB_POS = 5;  // AB Rh+
+        AB_NEG = 6;  // AB Rh-
+        ZERO_POS = 7; // 0 Rh+ (Protobuf O harfi ile 0 rakamını karıştırmasın diye ZERO dedim)
+        ZERO_NEG = 8; // 0 Rh-
+    }
+
+    enum EmStatus {
+        SAFE = 0;
+        URGENT = 1;
+        CRITICAL = 2;
+    }
+
+    // --- PAKET İÇERİĞİ ---
+    string user_id = 1;
+    EmStatus status = 2;
+    float latitude = 3;
+    float longitude = 4;
+    BloodType blood_type = 5;
+    int32 movement_score = 6;
+    string display_name = 7;
+    int64 timestamp = 8;
+}

@@ -113,3 +113,41 @@ data class ContactModel(
     var isSelected: Boolean = false,
     var isKenetUser: Boolean = false
 ) : Parcelable
+
+@Parcelize
+data class ConfirmedEarthquakeItem(
+    @SerializedName("id") val id: Int,
+    @SerializedName("latitude") val latitude: Double,
+    @SerializedName("longitude") val longitude: Double,
+    @SerializedName("title") val title: String,
+    @SerializedName("magnitude") val magnitude: Double,
+    @SerializedName("depth") val depth: Double,
+    @SerializedName("intensity_label") val intensityLabel: String? = "BİLİNMİYOR",
+    @SerializedName("radius_km") val radiusKm: Int? = 0,
+    @SerializedName("occurred_at") val occurredAt: String
+) : Parcelable
+
+data class EarthquakeListResponse(
+    @SerializedName("earthquakes") val earthquakes: List<ConfirmedEarthquakeItem>
+)
+
+
+
+// Sinyal İsteği
+data class SeismicSignalRequest(
+    @SerializedName("user_id") val userId: String,
+    @SerializedName("pga") val pga: Double,
+    @SerializedName("latitude") val latitude: Double,
+    @SerializedName("longitude") val longitude: Double
+)
+
+// Backend Tespit Yanıtı
+data class AppDetectedEventResponse(
+    @SerializedName("id") val id: Int,
+    @SerializedName("latitude") val latitude: Double,
+    @SerializedName("longitude") val longitude: Double,
+    @SerializedName("intensity_label") val intensityLabel: String,
+    @SerializedName("max_pga") val maxPga: Double,
+    @SerializedName("participating_users") val participatingUsers: Int,
+    @SerializedName("created_at") val createdAt: String
+)

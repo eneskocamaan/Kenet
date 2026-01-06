@@ -5,7 +5,6 @@
     android:id="@+id/nav_graph"
     app:startDestination="@id/splashFragment">
 
-    <!-- 0. SPLASH -->
     <fragment
         android:id="@+id/splashFragment"
         android:name="com.eneskocamaan.kenet.registration.SplashFragment"
@@ -27,7 +26,6 @@
             app:exitAnim="@android:anim/fade_out"/>
     </fragment>
 
-    <!-- 1. LOGIN -->
     <fragment
         android:id="@+id/loginFragment"
         android:name="com.eneskocamaan.kenet.registration.LoginFragment"
@@ -45,21 +43,18 @@
             app:popUpToInclusive="true" />
     </fragment>
 
-    <!-- 2. PROFILE SETUP -->
     <fragment
         android:id="@+id/profileSetupFragment"
         android:name="com.eneskocamaan.kenet.registration.ProfileSetupFragment"
         android:label="Profil Kurulumu"
         tools:layout="@layout/fragment_profile_setup">
 
-        <!-- HATAYI ÇÖZEN KISIM: Bu action eksikti, eklendi. -->
         <action
             android:id="@+id/action_profileSetupFragment_to_peersFragment"
             app:destination="@id/peersFragment"
             app:popUpTo="@id/profileSetupFragment"
             app:popUpToInclusive="true" />
 
-        <!-- Rehberden Seçme Ekranına Git -->
         <action
             android:id="@+id/action_profileSetupFragment_to_contactSelectionFragment"
             app:destination="@id/contactSelectionFragment"
@@ -77,18 +72,12 @@
             app:nullable="true"/>
     </fragment>
 
-    <!-- 2.1. CONTACT SELECTION (REHBER) -->
     <fragment
         android:id="@+id/contactSelectionFragment"
         android:name="com.eneskocamaan.kenet.registration.ContactSelectionFragment"
         android:label="Rehberden Seç"
         tools:layout="@layout/fragment_contact_selection" />
 
-    <!-- ================================================= -->
-    <!-- 3. ANA EKRANLAR (BOTTOM NAV)                      -->
-    <!-- ================================================= -->
-
-    <!-- TAB 1: KİŞİLER (PEERS) -->
     <fragment
         android:id="@+id/peersFragment"
         android:name="com.eneskocamaan.kenet.peer.PeersFragment"
@@ -99,21 +88,33 @@
             app:destination="@id/chatDetailFragment" />
     </fragment>
 
-    <!-- TAB 2: ACİL DURUM -->
     <fragment
         android:id="@+id/emergencyFragment"
         android:name="com.eneskocamaan.kenet.emergency.EmergencyFragment"
         android:label="Acil Durum"
-        tools:layout="@layout/fragment_emergency" />
+        tools:layout="@layout/fragment_emergency">
 
-    <!-- TAB 3: AYARLAR -->
+        <action
+            android:id="@+id/action_emergencyFragment_to_emergencyMapFragment"
+            app:destination="@id/emergencyMapFragment"
+            app:enterAnim="@android:anim/fade_in"
+            app:exitAnim="@android:anim/fade_out"
+            app:popEnterAnim="@android:anim/fade_in"
+            app:popExitAnim="@android:anim/fade_out" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/emergencyMapFragment"
+        android:name="com.eneskocamaan.kenet.emergency.EmergencyMapFragment"
+        android:label="Acil Durum Haritası"
+        tools:layout="@layout/fragment_emergency_map" />
+
     <fragment
         android:id="@+id/settingsFragment"
         android:name="com.eneskocamaan.kenet.settings.SettingsFragment"
         android:label="Ayarlar"
         tools:layout="@layout/fragment_settings">
 
-        <!-- Kişi Yönetim Ekranına Git -->
         <action
             android:id="@+id/action_settingsFragment_to_trustedContactsFragment"
             app:destination="@id/trustedContactsFragment"
@@ -123,14 +124,12 @@
             app:popExitAnim="@android:anim/fade_out" />
     </fragment>
 
-    <!-- 3.1. TRUSTED CONTACTS (KİŞİ YÖNETİMİ) -->
     <fragment
         android:id="@+id/trustedContactsFragment"
         android:name="com.eneskocamaan.kenet.settings.TrustedContactsFragment"
         android:label="Kişileri Yönet"
         tools:layout="@layout/fragment_trusted_contacts">
 
-        <!-- Yeni Kişi Eklemek İçin Rehbere Git -->
         <action
             android:id="@+id/action_trustedContactsFragment_to_contactSelectionFragment"
             app:destination="@id/contactSelectionFragment"
@@ -140,7 +139,6 @@
             app:popExitAnim="@android:anim/fade_out" />
     </fragment>
 
-    <!-- 4. CHAT DETAIL -->
     <fragment
         android:id="@+id/chatDetailFragment"
         android:name="com.eneskocamaan.kenet.ChatDetailFragment"
@@ -154,5 +152,11 @@
             app:nullable="true"
             android:defaultValue="@null"/>
     </fragment>
+
+    <fragment
+        android:id="@+id/nav_earthquake"
+        android:name="com.eneskocamaan.kenet.earthquake.EarthquakeHostFragment"
+        android:label="Deprem Ağı"
+        tools:layout="@layout/fragment_earthquake_host" />
 
 </navigation>

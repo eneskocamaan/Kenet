@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.androidx.navigation.safeargs.kotlin)
     id("kotlin-parcelize")
     id("com.google.protobuf") version "0.9.4"
+
 }
 
 android {
@@ -21,7 +22,6 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // NDK Filtresi: Sadece gerekli işlemci mimarilerini dahil et
         ndk {
             abiFilters.add("armeabi-v7a")
             abiFilters.add("arm64-v8a")
@@ -50,8 +50,6 @@ android {
         compose = true
         viewBinding = true
     }
-
-
 }
 
 dependencies {
@@ -72,34 +70,43 @@ dependencies {
     debugImplementation(libs.androidx.ui.test.manifest)
 
     implementation("androidx.fragment:fragment-ktx:1.8.9")
+
+    // Navigation (Sürüm 2.7.7 - Plugin ile uyumlu)
     implementation("androidx.navigation:navigation-fragment-ktx:2.7.7")
     implementation("androidx.navigation:navigation-ui-ktx:2.7.7")
+
     implementation("androidx.activity:activity-ktx:1.9.0")
     implementation("com.google.code.gson:gson:2.10.1")
 
+    // ROOM Database
     val room_version = "2.6.1"
     implementation("androidx.room:room-runtime:$room_version")
     implementation("androidx.room:room-ktx:$room_version")
     ksp("androidx.room:room-compiler:$room_version")
 
+    // RETROFIT
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
     implementation("com.jakewharton.retrofit:retrofit2-kotlin-coroutines-adapter:0.9.2")
 
+    // KONUM VE HARİTA
     implementation("com.google.android.gms:play-services-location:21.3.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
+    implementation("org.osmdroid:osmdroid-android:6.1.18")
+    implementation("org.apache.commons:commons-math3:3.6.1")
 
-    // Protobuf Lite
+    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
+
+    // Protobuf & Crypto
     implementation("com.google.protobuf:protobuf-javalite:3.24.4")
-
-    // --- ŞİFRELEME KÜTÜPHANELERİ ---
-    // JNA kütüphanesini AAR olarak ekle
     implementation("net.java.dev.jna:jna:5.14.0@aar")
-
-    // Lazysodium (İçindeki JNA'yı hariç tutarak)
     implementation("com.goterl:lazysodium-android:5.1.0") {
         exclude(group = "net.java.dev.jna")
     }
+
+    implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
+
+
 }
 
 protobuf {

@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="12dp"
+    android:layout_marginHorizontal="24dp"
+    app:cardBackgroundColor="#1E1E1E"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="4dp">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="16dp">
+
+        <View
+            android:id="@+id/viewStatusStrip"
+            android:layout_width="4dp"
+            android:layout_height="0dp"
+            android:background="#FF5252"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"/>
+
+        <View
+            android:id="@+id/viewIconBg"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@drawable/bg_circle_dark_red"
+            android:layout_marginStart="16dp"
+            app:layout_constraintStart_toEndOf="@+id/viewStatusStrip"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"/>
+
+        <ImageView
+            android:id="@+id/imgPeerIcon"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_warning"
+            app:tint="#FF5252"
+            app:layout_constraintStart_toStartOf="@+id/viewIconBg"
+            app:layout_constraintEnd_toEndOf="@+id/viewIconBg"
+            app:layout_constraintTop_toTopOf="@+id/viewIconBg"
+            app:layout_constraintBottom_toBottomOf="@+id/viewIconBg"/>
+
+        <TextView
+            android:id="@+id/tvPeerName"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="Ahmet Yılmaz"
+            android:textColor="@color/white"
+            android:textStyle="bold"
+            android:textSize="16sp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:layout_marginStart="16dp"
+            android:layout_marginEnd="8dp"
+            app:layout_constraintStart_toEndOf="@+id/viewIconBg"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintEnd_toStartOf="@+id/layoutDistance"/>
+
+        <TextView
+            android:id="@+id/tvPeerId"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="ID: 8824-AX"
+            android:textColor="#888888"
+            android:textSize="12sp"
+            android:letterSpacing="0.05"
+            android:layout_marginTop="2dp"
+            app:layout_constraintStart_toStartOf="@+id/tvPeerName"
+            app:layout_constraintTop_toBottomOf="@+id/tvPeerName"/>
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/chipStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="24dp"
+            android:text="KRİTİK"
+            android:textColor="@color/white"
+            android:textSize="10sp"
+            android:textStyle="bold"
+            app:chipBackgroundColor="#FF5252"
+            app:chipMinHeight="24dp"
+            app:chipStrokeWidth="0dp"
+            app:chipStartPadding="4dp"
+            app:chipEndPadding="4dp"
+            android:layout_marginTop="6dp"
+            app:layout_constraintStart_toStartOf="@+id/tvPeerName"
+            app:layout_constraintTop_toBottomOf="@+id/tvPeerId"/>
+
+        <ImageView
+            android:id="@+id/imgArrow"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_arrow_right"
+            app:tint="@color/primary_color"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintTop_toTopOf="parent"/>
+
+        <LinearLayout
+            android:id="@+id/layoutDistance"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="end"
+            android:layout_marginEnd="12dp"
+            app:layout_constraintEnd_toStartOf="@+id/imgArrow"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Uzaklık"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:textColor="#666666"/>
+
+            <TextView
+                android:id="@+id/tvPeerDistance"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0.4km"
+                android:textColor="@color/white"
+                android:textSize="18sp"
+                android:textStyle="bold"/>
+        </LinearLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</androidx.cardview.widget.CardView>

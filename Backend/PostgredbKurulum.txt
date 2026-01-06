@@ -66,3 +66,145 @@ CREATE TABLE IF NOT EXISTS sms_logs (
 
 -- Hızlı arama için index
 CREATE INDEX IF NOT EXISTS idx_sms_uid ON sms_logs(packet_uid);
+
+----------------------------------------------------------------------
+-- 4. POSTGIS EKLENTİSİ (Mekansal sorgular için zorunlu)
+----------------------------------------------------------------------
+CREATE EXTENSION IF NOT EXISTS postgis;
+
+----------------------------------------------------------------------
+-- 5. KONUM EŞİTLEME FONKSİYONU (Trigger)
+-- Python kodu sadece 'latitude/longitude' gönderse bile,
+-- bu fonksiyon otomatik olarak 'location' sütununu doldurur.
+----------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION sync_legacy_location()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Eğer enlem ve boylam doluysa, location (Geometry) kolonunu hesapla
+    IF NEW.latitude IS NOT NULL AND NEW.longitude IS NOT NULL THEN
+        NEW.location := ST_SetSRID(ST_MakePoint(NEW.longitude, NEW.latitude), 4326);
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+----------------------------------------------------------------------
+-- 6. MEVCUT USERS TABLOSUNU GÜNCELLEME
+-- Eski kodları bozmadan 'location' sütunu ekleniyor.
+----------------------------------------------------------------------
+ALTER TABLE users ADD COLUMN IF NOT EXISTS location GEOMETRY(Point, 4326);
+
+-- Hızlı konum sorguları için indeks (10km yarıçap hesabı için şart)
+CREATE INDEX IF NOT EXISTS idx_users_location ON users USING GIST (location);
+
+-- TRIGGER TANIMI: Users tablosuna her veri girildiğinde çalışır
+DROP TRIGGER IF EXISTS trg_sync_location ON users;
+CREATE TRIGGER trg_sync_location
+BEFORE INSERT OR UPDATE ON users
+FOR EACH ROW
+EXECUTE FUNCTION sync_legacy_location();
+
+-- GEÇMİŞ VERİLERİ ONARMA: Şu an kayıtlı kullanıcıların location sütununu doldur
+UPDATE users
+SET location = ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)
+WHERE latitude IS NOT NULL AND longitude IS NOT NULL AND location IS NULL;
+
+----------------------------------------------------------------------
+-- 7. SEISMIC_SIGNALS TABLOSU (Ham Veriler)
+-- Telefondan gelen "Sallanıyorum" sinyallerini tutar.
+----------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS seismic_signals (
+    id SERIAL PRIMARY KEY,
+    user_id CHAR(8) REFERENCES users(user_id),
+
+    -- İvme Değeri (PGA)
+    pga FLOAT NOT NULL,
+
+    -- Koordinatlar (Python'dan gelen)
+    latitude FLOAT NOT NULL,
+    longitude FLOAT NOT NULL,
+
+    -- Mekansal Analiz için (Trigger ile otomatik dolacak)
+    location GEOMETRY(Point, 4326),
+
+    -- Zaman Damgası
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Sinyalleri zamana ve konuma göre hızlı bulmak için indexler
+CREATE INDEX IF NOT EXISTS idx_signals_time ON seismic_signals(created_at);
+CREATE INDEX IF NOT EXISTS idx_signals_loc ON seismic_signals USING GIST (location);
+
+-- TRIGGER: Sinyal geldiğinde de location otomatik hesaplansın
+DROP TRIGGER IF EXISTS trg_sync_signal_location ON seismic_signals;
+CREATE TRIGGER trg_sync_signal_location
+BEFORE INSERT OR UPDATE ON seismic_signals
+FOR EACH ROW
+EXECUTE FUNCTION sync_legacy_location();
+
+----------------------------------------------------------------------
+-- 8. CONFIRMED_EARTHQUAKES TABLOSU (Onaylananlar)
+-- Füzyon sonrası onaylanan depremler buraya yazılır.
+----------------------------------------------------------------------
+DROP TABLE IF EXISTS confirmed_earthquakes;
+
+-- Yeni Tablo
+CREATE TABLE confirmed_earthquakes (
+    id SERIAL PRIMARY KEY,
+    external_id VARCHAR(50) UNIQUE, -- Kandilli'deki tarih (Benzersiz ID olarak kullanacağız)
+    title VARCHAR(200),             -- Yer (Örn: MUGLA)
+    magnitude FLOAT,                -- Büyüklük
+    depth FLOAT,                    -- Derinlik
+    latitude FLOAT,
+    longitude FLOAT,
+    occurred_at TIMESTAMP,          -- Tarih (Sorgulama için)
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Hızlı sorgulama için indeks (Son 24 saati çekerken hızlandırır)
+CREATE INDEX idx_occurred_at ON confirmed_earthquakes(occurred_at);
+
+-- Bu tablo için özel Trigger (Centroid kolonlarını Location'a çevirir)
+CREATE OR REPLACE FUNCTION sync_earthquake_location()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.centroid_latitude IS NOT NULL AND NEW.centroid_longitude IS NOT NULL THEN
+        NEW.location := ST_SetSRID(ST_MakePoint(NEW.centroid_longitude, NEW.centroid_latitude), 4326);
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_sync_eq_location ON confirmed_earthquakes;
+CREATE TRIGGER trg_sync_eq_location
+BEFORE INSERT OR UPDATE ON confirmed_earthquakes
+FOR EACH ROW
+EXECUTE FUNCTION sync_earthquake_location();
+
+----------------------------------------------------------------------
+-- APP_DETECTED_EVENTS: Kenet Algoritmasının Yakaladığı Depremler
+----------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS app_detected_events (
+    id SERIAL PRIMARY KEY,
+
+    -- Algılanan Merkez Üssü
+    latitude FLOAT NOT NULL,
+    longitude FLOAT NOT NULL,
+
+    -- PostGIS Konumu
+    location GEOMETRY(Point, 4326),
+
+    max_pga FLOAT,              -- Ölçülen en yüksek ivme
+    intensity_label VARCHAR(50), -- HAFİF, ORTA, YIKICI
+
+    participating_users INT,    -- Kaç telefonun verisiyle bu karar verildi?
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Location trigger'ı (Otomatik doldurma)
+DROP TRIGGER IF EXISTS trg_sync_app_event_location ON app_detected_events;
+CREATE TRIGGER trg_sync_app_event_location
+BEFORE INSERT OR UPDATE ON app_detected_events
+FOR EACH ROW
+EXECUTE FUNCTION sync_legacy_location();

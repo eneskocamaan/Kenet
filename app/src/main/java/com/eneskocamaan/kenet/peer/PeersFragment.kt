@@ -40,10 +40,16 @@ class PeersFragment : Fragment(R.layout.fragment_peers) {
 
     private fun observeContacts() {
         lifecycleScope.launch {
-            db.contactDao().getContactsWithUnreadCounts().collect { contacts ->
+            val myUserId = db.userDao().getMyUserId() ?: return@launch
+
+            db.contactDao().getContactsWithUnreadCounts(myUserId).collect { contacts ->
                 val sorted = contacts.sortedWith(
-                    compareByDescending<ContactWithUnreadCount> { it.unreadCount > 0 }
-                        .thenByDescending { !it.contact.contactServerId.isNullOrEmpty() }
+                    // 1. Kriter: Kenet kullanıcısı mı? (ServerID dolu olanlar üste)
+                    // Boolean değerlerde 'true' daha büyüktür gibi düşünülmez ama
+                    // compareByDescending(true) dediğimizde true olanlar (Kenet'liler) başa gelir.
+                    compareByDescending<ContactWithUnreadCount> { !it.contact.contactServerId.isNullOrEmpty() }
+                        // 2. Kriter: İsim sırasına göre (A-Z)
+                        .thenBy { it.contact.contactName }
                 )
                 adapter.updateList(sorted)
             }
@@ -53,7 +59,6 @@ class PeersFragment : Fragment(R.layout.fragment_peers) {
     private fun checkVersionAndNavigate(contact: ContactEntity) {
         // 1. Android Sürüm Kontrolü (Legacy)
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
-            // ... (Popup Kodu Aynı) ...
             return
         }
 
